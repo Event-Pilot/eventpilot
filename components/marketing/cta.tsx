@@ -1,6 +1,9 @@
 import Link from 'next/link'
 import { ArrowRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { siteConfig } from '@/src/content/site'
+
+const { heading, body, primaryCta, secondaryCta } = siteConfig.cta
 
 export function CTA() {
   return (
@@ -12,21 +15,18 @@ export function CTA() {
         />
         <div className="relative mx-auto max-w-2xl">
           <h2 className="text-balance text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-            Start your next event with a head start
+            {heading}
           </h2>
-          <p className="mt-4 text-pretty text-muted-foreground">
-            Generate your first planning pack free. Upgrade when your team is ready to unlock full
-            outputs, reviews, and unlimited handoffs.
-          </p>
+          <p className="mt-4 text-pretty text-muted-foreground">{body}</p>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Button asChild size="lg">
-              <Link href="/dashboard/new">
-                Create a task
+              <Link href={primaryCta.href}>
+                {primaryCta.label}
                 <ArrowRight className="size-4" />
               </Link>
             </Button>
             <Button asChild size="lg" variant="outline">
-              <Link href="/dashboard">Explore the dashboard</Link>
+              <Link href={secondaryCta.href}>{secondaryCta.label}</Link>
             </Button>
           </div>
         </div>

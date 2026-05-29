@@ -1,15 +1,15 @@
 import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
+import { siteConfig } from '@/src/content/site'
 import './globals.css'
 
 const geist = Geist({ subsets: ['latin'], variable: '--font-geist' })
 const geistMono = Geist_Mono({ subsets: ['latin'], variable: '--font-geist-mono' })
 
 export const metadata: Metadata = {
-  title: 'EventPilot — AI activity workflow assistant',
-  description:
-    'EventPilot helps student organizations and small teams generate event planning packs, review documents, and create clean handoff docs in minutes.',
+  title: siteConfig.metadata.title,
+  description: siteConfig.metadata.description,
   generator: 'v0.app',
 }
 

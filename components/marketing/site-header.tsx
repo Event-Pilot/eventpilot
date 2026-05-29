@@ -5,14 +5,10 @@ import { useState } from 'react'
 import { Menu, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Logo } from '@/components/logo'
+import { siteConfig } from '@/src/content/site'
 import { cn } from '@/lib/utils'
 
-const navItems = [
-  { label: 'Features', href: '#features' },
-  { label: 'How it works', href: '#how-it-works' },
-  { label: 'Use cases', href: '#use-cases' },
-  { label: 'Pricing', href: '#pricing' },
-]
+const { navItems, signInLabel, startFreeLabel } = siteConfig.header
 
 export function SiteHeader() {
   const [open, setOpen] = useState(false)
@@ -20,7 +16,7 @@ export function SiteHeader() {
   return (
     <header className="sticky top-0 z-50 border-b border-border/70 bg-background/80 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
-        <Link href="/" aria-label="EventPilot home">
+        <Link href="/" aria-label={`${siteConfig.name} home`}>
           <Logo />
         </Link>
 
@@ -38,10 +34,10 @@ export function SiteHeader() {
 
         <div className="hidden items-center gap-2 md:flex">
           <Button asChild variant="ghost" size="sm">
-            <Link href="/dashboard">Sign in</Link>
+            <Link href="/dashboard">{signInLabel}</Link>
           </Button>
           <Button asChild size="sm">
-            <Link href="/dashboard/new">Start free</Link>
+            <Link href="/dashboard/new">{startFreeLabel}</Link>
           </Button>
         </div>
 
@@ -74,10 +70,10 @@ export function SiteHeader() {
           ))}
           <div className="mt-2 flex flex-col gap-2">
             <Button asChild variant="outline" size="sm">
-              <Link href="/dashboard">Sign in</Link>
+              <Link href="/dashboard">{signInLabel}</Link>
             </Button>
             <Button asChild size="sm">
-              <Link href="/dashboard/new">Start free</Link>
+              <Link href="/dashboard/new">{startFreeLabel}</Link>
             </Button>
           </div>
         </div>
