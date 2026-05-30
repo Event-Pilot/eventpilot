@@ -27,9 +27,7 @@ next-env.d.ts
 *.sqlite
 *.sqlite3
 prisma/dev.db
-data/*.db
-data/*.sqlite
-data/*.sqlite3
+data/
 
 # logs
 npm-debug.log*
