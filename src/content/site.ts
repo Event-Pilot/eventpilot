@@ -72,12 +72,12 @@ export const siteConfig = {
     body: 'EventPilot 根据你提供的信息，自动整理时间线、预算、分工和清单。你专注活动本身，文档的事交给我们。',
     primaryCta: {
       label: '开始生成',
-      href: '/dashboard/new',
+      href: '/new',
       icon: 'ArrowRight' as IconName,
     },
     secondaryCta: {
       label: '查看示例',
-      href: '/dashboard',
+      href: '/tasks/demo',
     },
     footnote: '免费使用 · 无需注册 · 为学生组织和轻量团队设计',
     previewSteps: [
@@ -205,12 +205,12 @@ export const siteConfig = {
     body: '免费生成你的第一份活动启动包。团队需要更多功能时再升级。',
     primaryCta: {
       label: '开始生成',
-      href: '/dashboard/new',
+      href: '/new',
       icon: 'ArrowRight' as IconName,
     },
     secondaryCta: {
       label: '查看示例',
-      href: '/dashboard',
+      href: '/tasks/demo',
     },
   },
 
