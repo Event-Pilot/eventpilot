@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { AlertCircle } from 'lucide-react'
 import {
   FileStack,
   ShieldCheck,
@@ -76,15 +77,55 @@ const activityTypes = [
 export function PublicNewTaskForm() {
   const router = useRouter()
   const [mode, setMode] = useState<TaskMode>('startup')
+  const [activityType, setActivityType] = useState('社团活动')
   const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    setError(null)
     setSubmitting(true)
-    // Client-side mock — no backend, no API
-    setTimeout(() => {
-      router.push('/tasks/demo')
-    }, 1800)
+
+    const formData = new FormData(e.currentTarget as HTMLFormElement)
+
+    const body = {
+      mode,
+      activityName: (formData.get('activityName') as string) ?? '',
+      organizationName: (formData.get('organizationName') as string) ?? '',
+      activityType,
+      expectedParticipants: (formData.get('expectedParticipants') as string) ?? '',
+      dateOrPeriod: (formData.get('dateOrPeriod') as string) ?? '',
+      location: (formData.get('location') as string) ?? '',
+      budgetRange: (formData.get('budgetRange') as string) ?? '',
+      targetAudience: (formData.get('targetAudience') as string) ?? '',
+      extraContext: (formData.get('extraContext') as string) ?? '',
+      pastedMaterials: (formData.get('pastedMaterials') as string) ?? '',
+    }
+
+    try {
+      const res = await fetch('/api/tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+
+      if (res.status === 201) {
+        const data = await res.json()
+        router.push(`/tasks/${data.id}`)
+        // submitting stays true — page is navigating away
+      } else {
+        const data = await res.json().catch(() => ({} as Record<string, unknown>))
+        setError(
+          (data.message as string) ||
+            (data.error as string) ||
+            '创建失败，请稍后重试',
+        )
+        setSubmitting(false)
+      }
+    } catch {
+      setError('网络错误，请检查连接后重试')
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -176,7 +217,7 @@ export function PublicNewTaskForm() {
           <div className="grid gap-5 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="activityType">活动类型</Label>
-              <Select defaultValue="社团活动">
+              <Select name="activityType" value={activityType} onValueChange={setActivityType}>
                 <SelectTrigger id="activityType">
                   <SelectValue placeholder="选择活动类型" />
                 </SelectTrigger>
@@ -263,6 +304,14 @@ export function PublicNewTaskForm() {
             />
           </div>
         </div>
+
+        {/* ---- Error -------------------------------------------------------- */}
+        {error && (
+          <div className="flex items-center gap-2.5 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3">
+            <AlertCircle className="size-4 shrink-0 text-destructive" />
+            <p className="text-sm text-destructive">{error}</p>
+          </div>
+        )}
 
         {/* ---- Actions ------------------------------------------------------ */}
         <div className="flex flex-col-reverse items-center gap-3 sm:flex-row sm:justify-end">
