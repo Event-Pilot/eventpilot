@@ -10,7 +10,7 @@
 
 import { eq } from 'drizzle-orm'
 import { db } from './index'
-import { redeemCodes } from './schema'
+import { redeemCodes, tasks } from './schema'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -130,9 +130,10 @@ export async function findAndConsumeCode(
     return { ok: false, error: 'invalid_code' }
   }
 
-  return db.transaction(async (tx) => {
+  return db.transaction((tx) => {
     // 1. Read the code row inside the transaction.
-    const row = await tx
+    //    better-sqlite3 is synchronous inside a transaction callback.
+    const row = tx
       .select()
       .from(redeemCodes)
       .where(eq(redeemCodes.code, normalized))
@@ -149,10 +150,11 @@ export async function findAndConsumeCode(
 
     // 3. Mark as consumed — set taskId and usedAt.
     const now = new Date().toISOString()
-    await tx
+    tx
       .update(redeemCodes)
       .set({ taskId, usedAt: now })
       .where(eq(redeemCodes.code, normalized))
+      .run()
 
     // 4. Return the updated row.
     return {
@@ -165,5 +167,68 @@ export async function findAndConsumeCode(
         createdAt: row.createdAt,
       },
     }
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Atomic redeem + unlock (single transaction)
+// ---------------------------------------------------------------------------
+
+export type RedeemUnlockResult =
+  | { ok: true }
+  | { ok: false; error: 'invalid_code' }
+  | { ok: false; error: 'code_already_used' }
+
+/**
+ * Atomically consume a redeem code AND unlock the associated task.
+ *
+ * Both writes happen inside a single synchronous Drizzle transaction.
+ * If either fails, neither is committed.  This prevents the inconsistent
+ * state where a code is consumed but the task remains locked.
+ *
+ * better-sqlite3 note: the transaction callback is synchronous — no async,
+ * no await, no Promise returned from inside db.transaction().
+ */
+export async function redeemCodeAndUnlockTask(
+  code: string,
+  taskId: string,
+): Promise<RedeemUnlockResult> {
+  const normalized = normalizeCode(code)
+  if (!normalized) {
+    return { ok: false, error: 'invalid_code' }
+  }
+
+  return db.transaction((tx) => {
+    // 1. Read the code row.
+    const row = tx
+      .select()
+      .from(redeemCodes)
+      .where(eq(redeemCodes.code, normalized))
+      .get()
+
+    if (!row) {
+      return { ok: false, error: 'invalid_code' } as RedeemUnlockResult
+    }
+
+    // 2. Check if already used.
+    if (row.taskId !== null) {
+      return { ok: false, error: 'code_already_used' } as RedeemUnlockResult
+    }
+
+    const now = new Date().toISOString()
+
+    // 3. Mark code as consumed.
+    tx.update(redeemCodes)
+      .set({ taskId, usedAt: now })
+      .where(eq(redeemCodes.code, normalized))
+      .run()
+
+    // 4. Unlock the task — same transaction.
+    tx.update(tasks)
+      .set({ unlocked: 1, updatedAt: now })
+      .where(eq(tasks.id, taskId))
+      .run()
+
+    return { ok: true } as RedeemUnlockResult
   })
 }

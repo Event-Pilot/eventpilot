@@ -1,20 +1,14 @@
 // ---------------------------------------------------------------------------
 // EventPilot v0.1 — POST /api/tasks/[id]/redeem
 //
-// Accepts a redeem code, validates it, consumes it atomically, unlocks the
-// task, and returns the full public task shape (including fullOutput).
-//
-// Transaction note (v0.1):
-//   findAndConsumeCode runs in its own Drizzle transaction (atomic code
-//   consumption).  setTaskUnlocked runs as a separate update.  There is a
-//   sub-millisecond window between them where a crash would leave the code
-//   consumed but the task still locked.  This is acceptable for v0.1 scale.
-//   v0.2 should wrap both operations in a single db.transaction() call.
+// Validates a redeem code and atomically consumes it + unlocks the task in
+// a single database transaction.  Returns the full public task shape
+// (including fullOutput) on success.
 // ---------------------------------------------------------------------------
 
 import { NextResponse } from 'next/server'
-import { getTaskById, setTaskUnlocked, toPublic } from '@/db/tasks'
-import { findAndConsumeCode } from '@/db/redeem-codes'
+import { getTaskById, toPublic } from '@/db/tasks'
+import { redeemCodeAndUnlockTask } from '@/db/redeem-codes'
 
 export async function POST(
   request: Request,
@@ -76,9 +70,9 @@ export async function POST(
     )
   }
 
-  // 4. Atomically consume the redeem code -----------------------------------
+  // 4. Atomically consume code AND unlock task (single transaction) ---------
 
-  const result = await findAndConsumeCode(rawCode, taskId)
+  const result = await redeemCodeAndUnlockTask(rawCode, taskId)
 
   if (!result.ok) {
     if (result.error === 'invalid_code') {
@@ -93,25 +87,24 @@ export async function POST(
     )
   }
 
-  // 5. Unlock the task ------------------------------------------------------
+  // 5. Re-fetch the now-unlocked task and return public shape ----------------
 
-  let unlockedTask
   try {
-    unlockedTask = await setTaskUnlocked(taskId)
+    const unlockedTask = await getTaskById(taskId)
+    if (!unlockedTask) {
+      // Should not happen — task was verified in step 3 and still exists.
+      console.error(`Task ${taskId} vanished during redeem — possible data corruption`)
+      return NextResponse.json(
+        { error: 'server_error', message: '解锁失败，请稍后重试' },
+        { status: 500 },
+      )
+    }
+    return NextResponse.json(toPublic(unlockedTask))
   } catch (e) {
-    // Code is already consumed (step 4 was atomic).  The task remains locked
-    // but the code cannot be reused.  Log for manual intervention.
-    console.error(
-      `Redeem code ${result.code.code} consumed but task ${taskId} unlock failed:`,
-      e,
-    )
+    console.error('Failed to read task after unlock:', e)
     return NextResponse.json(
-      { error: 'server_error', message: '解锁失败，请联系管理员处理' },
+      { error: 'server_error', message: '解锁失败，请稍后重试' },
       { status: 500 },
     )
   }
-
-  // 6. Return public shape — fullOutput now included (unlocked === true) -----
-
-  return NextResponse.json(toPublic(unlockedTask))
 }

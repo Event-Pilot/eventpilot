@@ -197,6 +197,53 @@ function buildUserPrompt(input: GenerateTaskInput): string {
 }
 
 // ---------------------------------------------------------------------------
+// Expected section titles per mode (used as fallbacks for empty titles)
+// ---------------------------------------------------------------------------
+
+const EXPECTED_SECTION_TITLES: Record<GenerateTaskInput['mode'], string[]> = {
+  startup: [
+    '活动概览',
+    '时间线 Checklist',
+    '预算项目清单',
+    '人员分工建议',
+    '活动当天流程',
+    '活动前 48 小时检查清单',
+  ],
+  review: [
+    '活动回顾',
+    '数据与反馈汇总',
+    '问题与不足',
+    '改进建议',
+    '经验总结',
+    '后续行动清单',
+  ],
+  handoff: [
+    '活动概况',
+    '流程文档',
+    '关键联系人',
+    '历史经验',
+    '注意事项',
+    '可复用资源',
+  ],
+}
+
+/**
+ * Replace empty section titles with position-based fallbacks.
+ * Non-empty titles are left unchanged — this only patches gaps.
+ */
+function applyFallbackTitles(
+  sections: ResultSection[],
+  mode: GenerateTaskInput['mode'],
+): ResultSection[] {
+  const expected = EXPECTED_SECTION_TITLES[mode]
+  return sections.map((section, i) => {
+    if (section.title && section.title.trim()) return section
+    const fallback = expected[i] || `第 ${i + 1} 部分`
+    return { ...section, title: fallback }
+  })
+}
+
+// ---------------------------------------------------------------------------
 // Response validation
 // ---------------------------------------------------------------------------
 
@@ -337,5 +384,11 @@ export async function generateTaskSections(
     }
   }
 
-  return validateShape(parsed)
+  const output = validateShape(parsed)
+
+  // Patch empty section titles with mode-appropriate fallbacks.
+  output.previewSections = applyFallbackTitles(output.previewSections, input.mode)
+  output.fullSections = applyFallbackTitles(output.fullSections, input.mode)
+
+  return output
 }

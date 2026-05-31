@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { useParams } from 'next/navigation'
 import {
   ArrowLeft,
   Lock,
@@ -15,6 +16,7 @@ import {
   MapPin,
   Wallet,
   CheckCircle2,
+  Loader2,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -23,13 +25,63 @@ import { type ResultSection } from '@/lib/tasks'
 import { cn } from '@/lib/utils'
 
 // ---------------------------------------------------------------------------
-// Mock redeem codes (client-side only — no backend)
+// Constants
 // ---------------------------------------------------------------------------
 
 const VALID_CODES = ['EVENTPILOT', 'PILOT2026', 'UNLOCK']
 
+const MODE_LABELS: Record<string, string> = {
+  startup: '活动启动包',
+  review: '活动复盘包',
+  handoff: '换届交接包',
+}
+
+/** Titles for the 5 locked sections (always the same per the AI prompt). */
+const LOCKED_PLACEHOLDER_SECTIONS: ResultSection[] = [
+  {
+    id: 'timeline',
+    title: '时间线 Checklist',
+    summary: '筹备周期和各阶段里程碑。',
+    items: ['解锁后查看完整时间线'],
+    locked: true,
+  },
+  {
+    id: 'budget',
+    title: '预算项目清单',
+    summary: '按项目列出的预算明细。',
+    items: ['解锁后查看预算明细'],
+    locked: true,
+  },
+  {
+    id: 'roles',
+    title: '人员分工建议',
+    summary: '各岗位职责和备选联系人。',
+    items: ['解锁后查看分工详情'],
+    locked: true,
+  },
+  {
+    id: 'schedule',
+    title: '活动当天流程',
+    summary: '活动日按分钟排布的执行时间表。',
+    items: ['解锁后查看当天流程'],
+    locked: true,
+  },
+  {
+    id: 'checklist',
+    title: '活动前 48 小时检查清单',
+    summary: '最后确认事项，确保不遗漏。',
+    items: ['解锁后查看检查清单'],
+    locked: true,
+  },
+]
+
+const LOCKED_SECTION_DESCRIPTIONS = [
+  '时间线 Checklist、预算项目清单、人员分工建议',
+  '活动当天流程、活动前 48 小时检查清单',
+]
+
 // ---------------------------------------------------------------------------
-// Chinese demo result — client-side mock, no backend
+// Demo fallback (used when /tasks/demo loads with no backend)
 // ---------------------------------------------------------------------------
 
 const demoResult = {
@@ -46,87 +98,67 @@ const demoResult = {
       id: 'overview',
       title: '活动概览',
       summary:
-        '面向全校学生的社团文化展示活动，包含互动体验、成果展览和主题分享，旨在增进社团间交流和在校学生的参与感。',
+        '面向全校学生的社团文化展示活动，包含互动体验、成果展览和主题分享。',
       items: [
         '目标：展示计算机协会年度成果，吸引新成员，促进社团间交流',
         '主题：「科技与人文」',
         '形式：14:00 互动展区开放，15:30 主题分享，17:00 自由交流',
       ],
     },
-    {
-      id: 'timeline',
-      title: '时间线 Checklist',
-      summary: '八周筹备周期，按周拆分里程碑和负责人。',
-      items: [
-        '第 8 周：确认场地预定和押金',
-        '第 6 周：确定参展社团名单和整体活动流程',
-        '第 4 周：启动线上线下宣传、开放报名',
-        '第 2 周：确认物资清单、设备和志愿者排班',
-      ],
-    },
-    {
-      id: 'budget',
-      title: '预算项目清单',
-      summary: '按项目列出预算明细，含缓冲金。',
-      items: [
-        '场地及设备租赁：¥1,200',
-        '宣传物料（海报、横幅、传单）：¥600',
-        '茶歇及活动物料：¥800',
-        '应急预留（约 10%）：¥400',
-      ],
-      locked: true,
-    },
-    {
-      id: 'roles',
-      title: '人员分工建议',
-      summary: '明确各岗位职责和备选联系人。',
-      items: [
-        '活动总负责人：统筹协调、对外联络、进度追踪',
-        '宣传组：海报设计、推文撰写、线上线下推广',
-        '物资组：物料采购、现场布置、设备调试',
-        '接待组：签到引导、嘉宾接待、现场秩序维护',
-      ],
-      locked: true,
-    },
-    {
-      id: 'schedule',
-      title: '活动当天流程',
-      summary: '活动日按分钟排布的执行时间表。',
-      items: [
-        '12:00 — 布置组到场，摆放展架、调试设备',
-        '13:30 — 设备联调完成，签到台就位',
-        '14:00 — 互动展区开放，观众入场',
-        '15:30 — 主题分享环节开始',
-        '17:00 — 自由交流、合影、发放纪念品',
-        '17:30 — 撤场，物资清点归位',
-      ],
-      locked: true,
-    },
-    {
-      id: 'checklist',
-      title: '活动前 48 小时检查清单',
-      summary: '最后 48 小时的确认清单，确保不遗漏。',
-      items: [
-        '与场地管理方确认使用时间和注意事项',
-        '打印签到表、活动流程单和紧急联系人表',
-        '检查投影、音响、话筒等设备是否正常',
-        '向志愿者逐一确认到岗时间和分工',
-        '准备应急物资包（备用转接头、打印纸、充电宝、胶带）',
-      ],
-      locked: true,
-    },
+    ...LOCKED_PLACEHOLDER_SECTIONS,
   ] satisfies ResultSection[],
 }
 
 const FREE_SECTION_IDS = new Set(['overview'])
-const LOCKED_SECTION_DESCRIPTIONS = [
-  '时间线 Checklist、预算项目清单、人员分工建议',
-  '活动当天流程、活动前 48 小时检查清单',
-]
 
 // ---------------------------------------------------------------------------
-// Build Markdown from unlocked sections
+// View-data shape (normalised from API or demo)
 // ---------------------------------------------------------------------------
+
+interface TaskViewData {
+  title: string
+  type: string
+  meta: { audience: string; date: string; venue: string; budget: string }
+  previewSections: ResultSection[]
+  fullSections: ResultSection[] | null
+  unlocked: boolean
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function apiToView(data: any): TaskViewData {
+  const audience =
+    data.targetAudience ||
+    (data.expectedParticipants ? `约 ${data.expectedParticipants} 人` : '待确认')
+
+  return {
+    title: data.activityName || '',
+    type: MODE_LABELS[data.mode] || data.mode || '',
+    meta: {
+      audience,
+      date: data.dateOrPeriod || '待确认',
+      venue: data.location || '待确认',
+      budget: data.budgetRange || '待确认',
+    },
+    previewSections: data.previewOutput || [],
+    fullSections: data.fullOutput || null,
+    unlocked: data.unlocked || false,
+  }
+}
+
+function demoToView(): TaskViewData {
+  return {
+    title: demoResult.title,
+    type: demoResult.type,
+    meta: demoResult.meta,
+    previewSections: demoResult.sections.filter((s) => FREE_SECTION_IDS.has(s.id)),
+    fullSections: demoResult.sections,
+    unlocked: false,
+  }
+}
 
 function buildMarkdown(
   title: string,
@@ -136,30 +168,22 @@ function buildMarkdown(
   sections: ResultSection[],
 ): string {
   const lines: string[] = []
-
   lines.push(`# ${title}`)
   lines.push('')
   lines.push(`**类型：** ${type}`)
   lines.push('')
-
   for (const [key, label] of Object.entries(metaLabels)) {
-    if (meta[key]) {
-      lines.push(`- **${label}：** ${meta[key]}`)
-    }
+    if (meta[key]) lines.push(`- **${label}：** ${meta[key]}`)
   }
   lines.push('')
-
   for (const section of sections) {
     lines.push(`## ${section.title}`)
     lines.push('')
     lines.push(section.summary)
     lines.push('')
-    for (const item of section.items) {
-      lines.push(`- ${item}`)
-    }
+    for (const item of section.items) lines.push(`- ${item}`)
     lines.push('')
   }
-
   return lines.join('\n')
 }
 
@@ -168,10 +192,103 @@ function buildMarkdown(
 // ---------------------------------------------------------------------------
 
 export function PublicTaskResult() {
+  const params = useParams()
+  const id = params?.id as string | undefined
+
+  const [view, setView] = useState<TaskViewData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [pageError, setPageError] = useState<string | null>(null)
   const [unlocked, setUnlocked] = useState(false)
   const [copied, setCopied] = useState(false)
 
-  const { title, type, meta, sections } = demoResult
+  useEffect(() => {
+    if (!id) return
+
+    let cancelled = false
+
+    async function load() {
+      setLoading(true)
+      setPageError(null)
+
+      try {
+        const res = await fetch(`/api/tasks/${id}`)
+
+        if (res.status === 404) {
+          if (id === 'demo') {
+            const v = demoToView()
+            if (!cancelled) { setView(v); setUnlocked(v.unlocked); setLoading(false) }
+          } else {
+            if (!cancelled) {
+              setPageError('任务不存在或链接已失效')
+              setLoading(false)
+            }
+          }
+          return
+        }
+
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+
+        const data = await res.json()
+        if (cancelled) return
+
+        const v = apiToView(data)
+        setView(v)
+        setUnlocked(v.unlocked)
+      } catch {
+        if (!cancelled) {
+          if (id === 'demo') {
+            const v = demoToView()
+            setView(v)
+            setUnlocked(v.unlocked)
+          } else {
+            setPageError('加载失败，请稍后重试')
+          }
+        }
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+
+    load()
+    return () => { cancelled = true }
+  }, [id])
+
+  // ---- loading state ------------------------------------------------------
+
+  if (loading) {
+    return (
+      <div className="mx-auto max-w-5xl px-6 py-20 text-center">
+        <Loader2 className="mx-auto size-8 animate-spin text-muted-foreground" />
+        <p className="mt-4 text-sm text-muted-foreground">加载中…</p>
+      </div>
+    )
+  }
+
+  // ---- error state --------------------------------------------------------
+
+  if (pageError || !view) {
+    return (
+      <div className="mx-auto max-w-5xl px-6 py-20 text-center">
+        <div className="mx-auto flex size-12 items-center justify-center rounded-full border border-border bg-card">
+          <AlertCircle className="size-6 text-muted-foreground" />
+        </div>
+        <p className="mt-4 text-sm font-medium text-foreground">
+          {pageError || '加载失败'}
+        </p>
+        <Link
+          href="/new"
+          className="mt-2 inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
+        >
+          <ArrowLeft className="size-4" />
+          返回新建任务
+        </Link>
+      </div>
+    )
+  }
+
+  // ---- render -------------------------------------------------------------
+
+  const { title, type, meta } = view
 
   const metaItems = [
     { icon: Users, label: '面向', value: meta.audience },
@@ -187,11 +304,19 @@ export function PublicTaskResult() {
     budget: '预算',
   }
 
-  const freeSections = sections.filter((s) => FREE_SECTION_IDS.has(s.id))
-  const lockedSections = sections.filter((s) => !FREE_SECTION_IDS.has(s.id))
+  // Determine visible sections
+  const allFullSections = view.fullSections
+  const lockedSections = allFullSections
+    ? allFullSections.filter((s) => !FREE_SECTION_IDS.has(s.id))
+    : LOCKED_PLACEHOLDER_SECTIONS
+
+  const sectionsForMarkdown = allFullSections || [
+    ...view.previewSections,
+    ...lockedSections,
+  ]
 
   function handleCopyMarkdown() {
-    const md = buildMarkdown(title, type, meta, metaLabels, sections)
+    const md = buildMarkdown(title, type, meta, metaLabels, sectionsForMarkdown)
     navigator.clipboard.writeText(md).then(() => {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
@@ -258,11 +383,11 @@ export function PublicTaskResult() {
         {/* Main column */}
         <div className="space-y-4">
           {/* Free preview sections */}
-          {freeSections.map((section) => (
+          {view.previewSections.map((section) => (
             <SectionCard key={section.id} section={section} unlocked />
           ))}
 
-          {/* Locked sections */}
+          {/* Locked sections — real data or placeholders */}
           {lockedSections.map((section) => (
             <SectionCard
               key={section.id}
@@ -271,7 +396,7 @@ export function PublicTaskResult() {
             />
           ))}
 
-          {/* Unlocked badge when all sections visible */}
+          {/* Unlocked badge */}
           {unlocked && (
             <div className="rounded-2xl border border-primary/30 bg-accent p-5">
               <div className="flex items-center gap-3">
@@ -305,7 +430,7 @@ export function PublicTaskResult() {
 }
 
 // ---------------------------------------------------------------------------
-// Section card (reuses visual pattern from result-view.tsx)
+// Section card (unchanged from previous version)
 // ---------------------------------------------------------------------------
 
 function SectionCard({
@@ -375,7 +500,7 @@ function SectionCard({
 }
 
 // ---------------------------------------------------------------------------
-// Redeem panel (client-side mock)
+// Redeem panel (client-side mock — wired to real API in Step 5.10)
 // ---------------------------------------------------------------------------
 
 function RedeemPanel({
