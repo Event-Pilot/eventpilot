@@ -192,6 +192,37 @@ function buildMarkdown(
 // Shared result rendering (used by both demo and real task paths)
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Clipboard helper — falls back to execCommand on non-HTTPS origins
+// ---------------------------------------------------------------------------
+
+async function copyToClipboard(text: string): Promise<void> {
+  // Try modern clipboard API first (requires secure context).
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text)
+    return
+  }
+
+  // Fallback for HTTP / non-secure contexts.
+  const textarea = document.createElement('textarea')
+  textarea.value = text
+  textarea.style.position = 'fixed'
+  textarea.style.left = '-9999px'
+  textarea.style.top = '-9999px'
+  document.body.appendChild(textarea)
+
+  try {
+    textarea.select()
+    textarea.setSelectionRange(0, text.length)
+    const ok = document.execCommand('copy')
+    if (!ok) throw new Error('execCommand returned false')
+  } finally {
+    document.body.removeChild(textarea)
+  }
+}
+
+// ---------------------------------------------------------------------------
+
 function TaskResultView({
   view,
   unlocked,
@@ -207,6 +238,7 @@ function TaskResultView({
   taskId: string
 }) {
   const [copied, setCopied] = useState(false)
+  const [copyError, setCopyError] = useState(false)
 
   const { title, type, meta } = view
 
@@ -234,12 +266,16 @@ function TaskResultView({
     ...lockedSections,
   ]
 
-  function handleCopyMarkdown() {
+  async function handleCopyMarkdown() {
+    setCopyError(false)
     const md = buildMarkdown(title, type, meta, metaLabels, sectionsForMarkdown)
-    navigator.clipboard.writeText(md).then(() => {
+    try {
+      await copyToClipboard(md)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
-    })
+    } catch {
+      setCopyError(true)
+    }
   }
 
   return (
@@ -266,19 +302,26 @@ function TaskResultView({
           </h1>
         </div>
         {unlocked && (
-          <Button onClick={handleCopyMarkdown} variant="outline" size="sm">
-            {copied ? (
-              <>
-                <Check className="size-4" />
-                已复制
-              </>
-            ) : (
-              <>
-                <Copy className="size-4" />
-                复制 Markdown
-              </>
+          <div className="flex flex-col items-end gap-1.5">
+            <Button onClick={handleCopyMarkdown} variant="outline" size="sm">
+              {copied ? (
+                <>
+                  <Check className="size-4" />
+                  已复制
+                </>
+              ) : (
+                <>
+                  <Copy className="size-4" />
+                  复制 Markdown
+                </>
+              )}
+            </Button>
+            {copyError && (
+              <p className="text-xs text-destructive">
+                复制失败，请手动选择文本复制。
+              </p>
             )}
-          </Button>
+          </div>
         )}
       </div>
 
@@ -365,10 +408,10 @@ function TaskResultView({
 export function PublicTaskResult({ taskId }: { taskId: string }) {
   const [view, setView] = useState<TaskViewData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [generating, setGenerating] = useState(false)
   const [pageError, setPageError] = useState<string | null>(null)
   const [unlocked, setUnlocked] = useState(false)
 
-  // Called by RedeemPanel on successful code redemption.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function handleRedeem(apiData: any) {
     const v = apiToView(apiData)
@@ -376,9 +419,10 @@ export function PublicTaskResult({ taskId }: { taskId: string }) {
     setUnlocked(v.unlocked)
   }
 
-  // Fetch task from API.
+  // Fetch task + poll while generating.
   useEffect(() => {
     let cancelled = false
+    let timer: ReturnType<typeof setTimeout> | null = null
 
     async function load() {
       setLoading(true)
@@ -400,9 +444,27 @@ export function PublicTaskResult({ taskId }: { taskId: string }) {
         const data = await res.json()
         if (cancelled) return
 
+        if (data.status === 'generating') {
+          // Still generating — show progress UI and poll.
+          setGenerating(true)
+          setLoading(false)
+          if (!cancelled) {
+            timer = setTimeout(load, 5000)
+          }
+          return
+        }
+
+        if (data.status === 'error') {
+          setPageError('生成失败，请返回重新提交或稍后重试。')
+          setLoading(false)
+          return
+        }
+
+        // Ready — render.
         const v = apiToView(data)
         setView(v)
         setUnlocked(v.unlocked)
+        setGenerating(false)
       } catch {
         if (!cancelled) setPageError('加载失败，请稍后重试')
       } finally {
@@ -411,8 +473,30 @@ export function PublicTaskResult({ taskId }: { taskId: string }) {
     }
 
     load()
-    return () => { cancelled = true }
+
+    return () => {
+      cancelled = true
+      if (timer) clearTimeout(timer)
+    }
   }, [taskId])
+
+  // ---- generating state ---------------------------------------------------
+
+  if (generating) {
+    return (
+      <div className="mx-auto max-w-5xl px-6 py-20 text-center">
+        <Loader2 className="mx-auto size-8 animate-spin text-primary" />
+        <p className="mt-4 text-sm font-medium text-foreground">
+          正在生成活动流程包…
+        </p>
+        <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+          通常需要 20–60 秒，请稍候。
+        </p>
+      </div>
+    )
+  }
+
+  // ---- loading state ------------------------------------------------------
 
   if (loading) {
     return (

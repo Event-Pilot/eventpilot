@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { AlertCircle } from 'lucide-react'
 import {
@@ -75,7 +74,6 @@ const activityTypes = [
 // ---------------------------------------------------------------------------
 
 export function PublicNewTaskForm() {
-  const router = useRouter()
   const containerRef = useRef<HTMLDivElement>(null)
   const [mode, setMode] = useState<TaskMode>('startup')
   const [activityType, setActivityType] = useState('社团活动')
@@ -139,7 +137,7 @@ export function PublicNewTaskForm() {
         body: JSON.stringify(body),
       })
 
-      if (res.status === 201) {
+      if (res.status === 201 || res.status === 202) {
         const data = await res.json()
 
         if (!data.id) {
@@ -151,7 +149,10 @@ export function PublicNewTaskForm() {
 
         console.info('[EventPilot] task created', data.id)
         setNavigating(true)
-        window.location.assign(`/tasks/${data.id}`)
+        // Brief delay so user sees "任务已创建" before navigation.
+        setTimeout(() => {
+          window.location.assign(`/tasks/${data.id}`)
+        }, 800)
       } else {
         const data = await res.json().catch(() => ({} as Record<string, unknown>))
         console.error('[EventPilot] task creation failed', res.status, data)
@@ -352,13 +353,10 @@ export function PublicNewTaskForm() {
           <div className="rounded-2xl border border-border bg-card p-6 text-center">
             <Spinner className="mx-auto size-8 text-primary" />
             <p className="mt-4 text-sm font-medium text-foreground">
-              {navigating ? '生成完成，正在打开结果页…' : '正在生成活动流程包…'}
+              {navigating ? '任务已创建，正在打开结果页…' : '正在创建任务…'}
             </p>
             <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-              通常需要 20–60 秒，请不要关闭页面。
-            </p>
-            <p className="text-xs text-muted-foreground">
-              生成完成后会自动跳转到结果页。
+              正在创建任务，请稍候…
             </p>
           </div>
         )}
@@ -391,7 +389,7 @@ export function PublicNewTaskForm() {
             {submitting ? (
               <>
                 <Spinner className="size-4" />
-                {navigating ? '正在跳转…' : '正在生成活动流程包…'}
+                {navigating ? '正在跳转…' : '正在创建任务…'}
               </>
             ) : (
               <>

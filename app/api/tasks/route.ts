@@ -1,9 +1,8 @@
 // ---------------------------------------------------------------------------
 // EventPilot v0.1 — POST /api/tasks
 //
-// Accepts task creation form data, validates it, creates a DB row, calls the
-// AI module to generate structured sections, stores the result, and returns
-// the public-safe preview output.
+// Creates a task row and returns immediately with status='generating'.
+// AI generation runs in the background (same Node process, no queue).
 //
 // SECURITY: fullOutput is written to the database but NEVER included in the
 // response from this endpoint.  It can only be obtained via a redeem unlock.
@@ -37,10 +36,6 @@ interface ValidatedInput {
   pastedMaterials?: string
 }
 
-/**
- * Parse and validate the request body.
- * Returns the validated input or a 400 NextResponse.
- */
 function validateBody(body: unknown): ValidatedInput | NextResponse {
   if (!body || typeof body !== 'object') {
     return NextResponse.json(
@@ -50,8 +45,6 @@ function validateBody(body: unknown): ValidatedInput | NextResponse {
   }
 
   const b = body as Record<string, unknown>
-
-  // ---- required fields ----------------------------------------------------
 
   const activityName = b.activityName
   if (!activityName || typeof activityName !== 'string' || !activityName.trim()) {
@@ -69,8 +62,6 @@ function validateBody(body: unknown): ValidatedInput | NextResponse {
     )
   }
 
-  // ---- mode ---------------------------------------------------------------
-
   const mode = b.mode
   if (!mode || typeof mode !== 'string' || !VALID_MODES.includes(mode as TaskMode)) {
     return NextResponse.json(
@@ -78,8 +69,6 @@ function validateBody(body: unknown): ValidatedInput | NextResponse {
       { status: 400 },
     )
   }
-
-  // ---- optional fields — normalise ----------------------------------------
 
   let expectedParticipants: number | null = null
   if (b.expectedParticipants !== undefined && b.expectedParticipants !== null && b.expectedParticipants !== '') {
@@ -110,6 +99,29 @@ function validateBody(body: unknown): ValidatedInput | NextResponse {
 }
 
 // ---------------------------------------------------------------------------
+// Background generation (fire-and-forget — same process, no queue)
+// ---------------------------------------------------------------------------
+
+async function generateInBackground(taskId: string, input: GenerateTaskInput) {
+  console.info('[EventPilot] generation started', taskId)
+  try {
+    const result = await generateTaskSections(input)
+    await saveTaskGenerationResult(taskId, {
+      previewSections: result.previewSections,
+      fullSections: result.fullSections,
+    })
+    console.info('[EventPilot] generation finished', taskId)
+  } catch (e) {
+    console.error('[EventPilot] generation failed', taskId, e)
+    try {
+      await setTaskError(taskId)
+    } catch (dbError) {
+      console.error('Failed to mark task as error:', dbError)
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Handler
 // ---------------------------------------------------------------------------
 
@@ -128,7 +140,7 @@ export async function POST(request: Request) {
   const validated = validateBody(body)
   if (validated instanceof NextResponse) return validated
 
-  // 2. Build DAL input and create task
+  // 2. Create task row (status='generating')
   const createInput: CreateTaskInput = {
     mode: validated.mode,
     activityName: validated.activityName,
@@ -154,7 +166,9 @@ export async function POST(request: Request) {
     )
   }
 
-  // 3. Call AI generation
+  console.info('[EventPilot] task created', task.id)
+
+  // 3. Start AI generation in the background — do NOT await.
   const aiInput: GenerateTaskInput = {
     mode: validated.mode,
     activityName: validated.activityName,
@@ -168,48 +182,11 @@ export async function POST(request: Request) {
     extraContext: validated.extraContext,
     pastedMaterials: validated.pastedMaterials,
   }
+  generateInBackground(task.id, aiInput)
 
-  try {
-    const result = await generateTaskSections(aiInput)
-
-    // 4. Store result
-    const updated = await saveTaskGenerationResult(task.id, {
-      previewSections: result.previewSections,
-      fullSections: result.fullSections,
-    })
-
-    // 5. Return public-safe preview (fullOutput NEVER included)
-    return NextResponse.json(
-      {
-        id: updated.id,
-        status: updated.status,
-        previewOutput: updated.previewOutput,
-        meta: result.meta,
-      },
-      { status: 201 },
-    )
-  } catch (e) {
-    // AI generation failed — mark task as error so the client can see it.
-    console.error('AI generation failed for task', task.id, ':', e)
-
-    try {
-      await setTaskError(task.id)
-    } catch (dbError) {
-      console.error('Failed to mark task as error:', dbError)
-    }
-
-    const message =
-      e instanceof Error ? e.message : 'AI 生成失败，请稍后重试'
-
-    return NextResponse.json(
-      {
-        id: task.id,
-        error: 'generation_failed',
-        message: message.includes('AI_API_KEY')
-          ? 'AI 服务未配置，请联系管理员'
-          : 'AI 生成失败，请稍后重试',
-      },
-      { status: 500 },
-    )
-  }
+  // 4. Return immediately — client polls /api/tasks/{id} for status.
+  return NextResponse.json(
+    { id: task.id, status: 'generating' },
+    { status: 202 },
+  )
 }
