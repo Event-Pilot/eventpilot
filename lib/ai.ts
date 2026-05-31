@@ -227,6 +227,37 @@ const EXPECTED_SECTION_TITLES: Record<GenerateTaskInput['mode'], string[]> = {
   ],
 }
 
+// ---- Expected section IDs per mode (deterministic, never empty) -----------
+
+const EXPECTED_SECTION_IDS: Record<GenerateTaskInput['mode'], string[]> = {
+  startup: [
+    'overview',
+    'timeline',
+    'budget',
+    'roles',
+    'schedule',
+    'checklist',
+  ],
+  review: [
+    'overview',
+    'data',
+    'issues',
+    'improvements',
+    'summary',
+    'actions',
+  ],
+  handoff: [
+    'overview',
+    'process',
+    'contacts',
+    'history',
+    'notes',
+    'resources',
+  ],
+}
+
+// ---- Post-processing ------------------------------------------------------
+
 /**
  * Replace empty section titles with position-based fallbacks.
  * Non-empty titles are left unchanged — this only patches gaps.
@@ -240,6 +271,23 @@ function applyFallbackTitles(
     if (section.title && section.title.trim()) return section
     const fallback = expected[i] || `第 ${i + 1} 部分`
     return { ...section, title: fallback }
+  })
+}
+
+/**
+ * Assign deterministic section IDs by position.
+ * Empty or missing IDs are replaced; non-empty IDs are left unchanged.
+ * This ensures FREE_SECTION_IDS can reliably match the first section.
+ */
+function applyFallbackIds(
+  sections: ResultSection[],
+  mode: GenerateTaskInput['mode'],
+): ResultSection[] {
+  const expected = EXPECTED_SECTION_IDS[mode]
+  return sections.map((section, i) => {
+    if (section.id && section.id.trim()) return section
+    const fallback = expected[i] || `section-${i}`
+    return { ...section, id: fallback }
   })
 }
 
@@ -386,9 +434,15 @@ export async function generateTaskSections(
 
   const output = validateShape(parsed)
 
-  // Patch empty section titles with mode-appropriate fallbacks.
-  output.previewSections = applyFallbackTitles(output.previewSections, input.mode)
-  output.fullSections = applyFallbackTitles(output.fullSections, input.mode)
+  // Patch empty section titles and missing IDs with mode-appropriate fallbacks.
+  output.previewSections = applyFallbackIds(
+    applyFallbackTitles(output.previewSections, input.mode),
+    input.mode,
+  )
+  output.fullSections = applyFallbackIds(
+    applyFallbackTitles(output.fullSections, input.mode),
+    input.mode,
+  )
 
   return output
 }
