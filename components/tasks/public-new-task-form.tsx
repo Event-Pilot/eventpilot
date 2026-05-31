@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { AlertCircle } from 'lucide-react'
@@ -76,31 +76,61 @@ const activityTypes = [
 
 export function PublicNewTaskForm() {
   const router = useRouter()
+  const containerRef = useRef<HTMLDivElement>(null)
   const [mode, setMode] = useState<TaskMode>('startup')
   const [activityType, setActivityType] = useState('社团活动')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [navigating, setNavigating] = useState(false)
 
-  async function handleSubmit(e: React.FormEvent) {
+  /** Read a named input value from the container. */
+  function getField(name: string): string {
+    if (!containerRef.current) return ''
+    const el = containerRef.current.querySelector(
+      `[name="${name}"]`,
+    ) as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | null
+    return el?.value ?? ''
+  }
+
+  async function handleGenerate(e: React.MouseEvent) {
     e.preventDefault()
+    console.info('[EventPilot] generate button clicked')
+
+    if (submitting) return
+
     setError(null)
     setSubmitting(true)
 
-    const formData = new FormData(e.currentTarget as HTMLFormElement)
+    const activityName = getField('activityName').trim()
+    const organizationName = getField('organizationName').trim()
+
+    // Validate required fields in JS.
+    if (!activityName) {
+      setError('活动名称不能为空')
+      setSubmitting(false)
+      return
+    }
+    if (!organizationName) {
+      setError('组织名称不能为空')
+      setSubmitting(false)
+      return
+    }
 
     const body = {
       mode,
-      activityName: (formData.get('activityName') as string) ?? '',
-      organizationName: (formData.get('organizationName') as string) ?? '',
+      activityName,
+      organizationName,
       activityType,
-      expectedParticipants: (formData.get('expectedParticipants') as string) ?? '',
-      dateOrPeriod: (formData.get('dateOrPeriod') as string) ?? '',
-      location: (formData.get('location') as string) ?? '',
-      budgetRange: (formData.get('budgetRange') as string) ?? '',
-      targetAudience: (formData.get('targetAudience') as string) ?? '',
-      extraContext: (formData.get('extraContext') as string) ?? '',
-      pastedMaterials: (formData.get('pastedMaterials') as string) ?? '',
+      expectedParticipants: getField('expectedParticipants'),
+      dateOrPeriod: getField('dateOrPeriod'),
+      location: getField('location'),
+      budgetRange: getField('budgetRange'),
+      targetAudience: getField('targetAudience'),
+      extraContext: getField('extraContext'),
+      pastedMaterials: getField('pastedMaterials'),
     }
+
+    console.info('[EventPilot] creating task...')
 
     try {
       const res = await fetch('/api/tasks', {
@@ -111,19 +141,30 @@ export function PublicNewTaskForm() {
 
       if (res.status === 201) {
         const data = await res.json()
-        router.push(`/tasks/${data.id}`)
-        // submitting stays true — page is navigating away
+
+        if (!data.id) {
+          console.error('[EventPilot] task created but no id in response', data)
+          setError('生成成功但未收到结果链接，请稍后重试。')
+          setSubmitting(false)
+          return
+        }
+
+        console.info('[EventPilot] task created', data.id)
+        setNavigating(true)
+        window.location.assign(`/tasks/${data.id}`)
       } else {
         const data = await res.json().catch(() => ({} as Record<string, unknown>))
+        console.error('[EventPilot] task creation failed', res.status, data)
         setError(
           (data.message as string) ||
             (data.error as string) ||
-            '创建失败，请稍后重试',
+            '创建失败，请稍后重试。',
         )
         setSubmitting(false)
       }
-    } catch {
-      setError('网络错误，请检查连接后重试')
+    } catch (err) {
+      console.error('[EventPilot] task creation failed', err)
+      setError('网络错误，请检查连接后重试。')
       setSubmitting(false)
     }
   }
@@ -149,7 +190,10 @@ export function PublicNewTaskForm() {
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="mt-8 space-y-8">
+      <div
+        ref={containerRef}
+        className="mt-8 space-y-8"
+      >
         {/* ---- Mode selector ------------------------------------------------ */}
         <fieldset className="space-y-3">
           <legend className="text-sm font-medium text-foreground">生成模式</legend>
@@ -199,7 +243,6 @@ export function PublicNewTaskForm() {
                 id="activityName"
                 name="activityName"
                 placeholder="例如：2026 春季社团文化节"
-                required
               />
             </div>
             <div className="space-y-2">
@@ -208,7 +251,6 @@ export function PublicNewTaskForm() {
                 id="organizationName"
                 name="organizationName"
                 placeholder="例如：计算机协会"
-                required
               />
             </div>
           </div>
@@ -305,6 +347,22 @@ export function PublicNewTaskForm() {
           </div>
         </div>
 
+        {/* ---- Loading panel ------------------------------------------------- */}
+        {submitting && (
+          <div className="rounded-2xl border border-border bg-card p-6 text-center">
+            <Spinner className="mx-auto size-8 text-primary" />
+            <p className="mt-4 text-sm font-medium text-foreground">
+              {navigating ? '生成完成，正在打开结果页…' : '正在生成活动流程包…'}
+            </p>
+            <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+              通常需要 20–60 秒，请不要关闭页面。
+            </p>
+            <p className="text-xs text-muted-foreground">
+              生成完成后会自动跳转到结果页。
+            </p>
+          </div>
+        )}
+
         {/* ---- Error -------------------------------------------------------- */}
         {error && (
           <div className="flex items-center gap-2.5 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3">
@@ -315,14 +373,25 @@ export function PublicNewTaskForm() {
 
         {/* ---- Actions ------------------------------------------------------ */}
         <div className="flex flex-col-reverse items-center gap-3 sm:flex-row sm:justify-end">
-          <Button asChild type="button" variant="ghost">
-            <Link href="/">取消</Link>
-          </Button>
-          <Button type="submit" disabled={submitting} className="w-full sm:w-auto">
+          {submitting ? (
+            <span className="text-sm text-muted-foreground">
+              生成中，请稍候…
+            </span>
+          ) : (
+            <Button asChild type="button" variant="ghost">
+              <Link href="/">取消</Link>
+            </Button>
+          )}
+          <Button
+            type="button"
+            disabled={submitting}
+            className="w-full sm:w-auto"
+            onClick={handleGenerate}
+          >
             {submitting ? (
               <>
                 <Spinner className="size-4" />
-                正在生成活动流程包…
+                {navigating ? '正在跳转…' : '正在生成活动流程包…'}
               </>
             ) : (
               <>
@@ -332,7 +401,7 @@ export function PublicNewTaskForm() {
             )}
           </Button>
         </div>
-      </form>
+      </div>
     </div>
   )
 }

@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { useParams } from 'next/navigation'
 import {
   ArrowLeft,
   Lock,
@@ -154,7 +153,7 @@ function demoToView(): TaskViewData {
     meta: demoResult.meta,
     previewSections: demoResult.sections.filter((s) => FREE_SECTION_IDS.has(s.id)),
     fullSections: demoResult.sections,
-    unlocked: false,
+    unlocked: true, // demo shows all content unlocked
   }
 }
 
@@ -189,113 +188,25 @@ function buildMarkdown(
 // Component
 // ---------------------------------------------------------------------------
 
-export function PublicTaskResult() {
-  const params = useParams()
-  const id = params?.id as string | undefined
+// ---------------------------------------------------------------------------
+// Shared result rendering (used by both demo and real task paths)
+// ---------------------------------------------------------------------------
 
-  const [view, setView] = useState<TaskViewData | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [pageError, setPageError] = useState<string | null>(null)
-  const [unlocked, setUnlocked] = useState(false)
-  const [copied, setCopied] = useState(false)
-
-  // ---- load task on mount -------------------------------------------------
-
-  useEffect(() => {
-    if (!id) return
-
-    let cancelled = false
-
-    async function load() {
-      setLoading(true)
-      setPageError(null)
-
-      try {
-        const res = await fetch(`/api/tasks/${id}`)
-
-        if (res.status === 404) {
-          if (id === 'demo') {
-            const v = demoToView()
-            if (!cancelled) { setView(v); setUnlocked(v.unlocked); setLoading(false) }
-          } else {
-            if (!cancelled) {
-              setPageError('任务不存在或链接已失效')
-              setLoading(false)
-            }
-          }
-          return
-        }
-
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
-
-        const data = await res.json()
-        if (cancelled) return
-
-        const v = apiToView(data)
-        setView(v)
-        setUnlocked(v.unlocked)
-      } catch {
-        if (!cancelled) {
-          if (id === 'demo') {
-            const v = demoToView()
-            setView(v)
-            setUnlocked(v.unlocked)
-          } else {
-            setPageError('加载失败，请稍后重试')
-          }
-        }
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    }
-
-    load()
-    return () => { cancelled = true }
-  }, [id])
-
-  // ---- redeem callback (called by RedeemPanel on API success) ------------
-
+function TaskResultView({
+  view,
+  unlocked,
+  isDemo,
+  onRedeem,
+  taskId,
+}: {
+  view: TaskViewData
+  unlocked: boolean
+  isDemo: boolean
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  function handleRedeemSuccess(apiData: any) {
-    const v = apiToView(apiData)
-    setView(v)
-    setUnlocked(v.unlocked)
-  }
-
-  // ---- loading state ------------------------------------------------------
-
-  if (loading) {
-    return (
-      <div className="mx-auto max-w-5xl px-6 py-20 text-center">
-        <Loader2 className="mx-auto size-8 animate-spin text-muted-foreground" />
-        <p className="mt-4 text-sm text-muted-foreground">加载中…</p>
-      </div>
-    )
-  }
-
-  // ---- error state --------------------------------------------------------
-
-  if (pageError || !view) {
-    return (
-      <div className="mx-auto max-w-5xl px-6 py-20 text-center">
-        <div className="mx-auto flex size-12 items-center justify-center rounded-full border border-border bg-card">
-          <AlertCircle className="size-6 text-muted-foreground" />
-        </div>
-        <p className="mt-4 text-sm font-medium text-foreground">
-          {pageError || '加载失败'}
-        </p>
-        <Link
-          href="/new"
-          className="mt-2 inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
-        >
-          <ArrowLeft className="size-4" />
-          返回新建任务
-        </Link>
-      </div>
-    )
-  }
-
-  // ---- render -------------------------------------------------------------
+  onRedeem: (apiData: any) => void
+  taskId: string
+}) {
+  const [copied, setCopied] = useState(false)
 
   const { title, type, meta } = view
 
@@ -417,15 +328,129 @@ export function PublicTaskResult() {
         </div>
 
         <aside className="lg:sticky lg:top-24 lg:h-fit">
-          <RedeemPanel
-            taskId={id || ''}
-            unlocked={unlocked}
-            onUnlock={handleRedeemSuccess}
-            lockedDescriptions={LOCKED_SECTION_DESCRIPTIONS}
-          />
+          {isDemo ? (
+            <div className="rounded-2xl border border-border bg-card p-5">
+              <p className="text-sm font-medium text-foreground">这是演示页面</p>
+              <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+                真实生成的活动任务需要输入兑换码才能解锁完整内容。
+              </p>
+              <p className="mt-3 text-xs text-muted-foreground">
+                <Link
+                  href="/new"
+                  className="font-medium text-primary hover:underline"
+                >
+                  创建一个真实任务
+                </Link>
+                {' '}体验完整流程。
+              </p>
+            </div>
+          ) : (
+            <RedeemPanel
+              taskId={taskId}
+              unlocked={unlocked}
+              onUnlock={onRedeem}
+              lockedDescriptions={LOCKED_SECTION_DESCRIPTIONS}
+            />
+          )}
         </aside>
       </div>
     </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// PublicTaskResult — top-level controller
+// ---------------------------------------------------------------------------
+
+export function PublicTaskResult({ taskId }: { taskId: string }) {
+  const [view, setView] = useState<TaskViewData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [pageError, setPageError] = useState<string | null>(null)
+  const [unlocked, setUnlocked] = useState(false)
+
+  // Called by RedeemPanel on successful code redemption.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function handleRedeem(apiData: any) {
+    const v = apiToView(apiData)
+    setView(v)
+    setUnlocked(v.unlocked)
+  }
+
+  // Fetch task from API.
+  useEffect(() => {
+    let cancelled = false
+
+    async function load() {
+      setLoading(true)
+      setPageError(null)
+
+      try {
+        const res = await fetch(`/api/tasks/${taskId}`)
+
+        if (res.status === 404) {
+          if (!cancelled) {
+            setPageError('任务不存在或链接已失效')
+            setLoading(false)
+          }
+          return
+        }
+
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+
+        const data = await res.json()
+        if (cancelled) return
+
+        const v = apiToView(data)
+        setView(v)
+        setUnlocked(v.unlocked)
+      } catch {
+        if (!cancelled) setPageError('加载失败，请稍后重试')
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+
+    load()
+    return () => { cancelled = true }
+  }, [taskId])
+
+  if (loading) {
+    return (
+      <div className="mx-auto max-w-5xl px-6 py-20 text-center">
+        <Loader2 className="mx-auto size-8 animate-spin text-muted-foreground" />
+        <p className="mt-4 text-sm text-muted-foreground">加载中…</p>
+      </div>
+    )
+  }
+
+  if (pageError || !view) {
+    return (
+      <div className="mx-auto max-w-5xl px-6 py-20 text-center">
+        <div className="mx-auto flex size-12 items-center justify-center rounded-full border border-border bg-card">
+          <AlertCircle className="size-6 text-muted-foreground" />
+        </div>
+        <p className="mt-4 text-sm font-medium text-foreground">
+          {pageError || '加载失败'}
+        </p>
+        <Link
+          href="/new"
+          className="mt-2 inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
+        >
+          <ArrowLeft className="size-4" />
+          返回新建任务
+        </Link>
+      </div>
+    )
+  }
+
+  return (
+    <TaskResultView
+      view={view}
+      unlocked={unlocked}
+      isDemo={false}
+      onRedeem={handleRedeem}
+      taskId={taskId}
+    />
   )
 }
 
