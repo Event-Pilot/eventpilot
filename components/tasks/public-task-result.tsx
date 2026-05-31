@@ -28,15 +28,13 @@ import { cn } from '@/lib/utils'
 // Constants
 // ---------------------------------------------------------------------------
 
-const VALID_CODES = ['EVENTPILOT', 'PILOT2026', 'UNLOCK']
-
 const MODE_LABELS: Record<string, string> = {
   startup: '活动启动包',
   review: '活动复盘包',
   handoff: '换届交接包',
 }
 
-/** Titles for the 5 locked sections (always the same per the AI prompt). */
+/** Placeholder sections shown while content is locked. */
 const LOCKED_PLACEHOLDER_SECTIONS: ResultSection[] = [
   {
     id: 'timeline',
@@ -80,6 +78,8 @@ const LOCKED_SECTION_DESCRIPTIONS = [
   '活动当天流程、活动前 48 小时检查清单',
 ]
 
+const FREE_SECTION_IDS = new Set(['overview'])
+
 // ---------------------------------------------------------------------------
 // Demo fallback (used when /tasks/demo loads with no backend)
 // ---------------------------------------------------------------------------
@@ -108,8 +108,6 @@ const demoResult = {
     ...LOCKED_PLACEHOLDER_SECTIONS,
   ] satisfies ResultSection[],
 }
-
-const FREE_SECTION_IDS = new Set(['overview'])
 
 // ---------------------------------------------------------------------------
 // View-data shape (normalised from API or demo)
@@ -201,6 +199,8 @@ export function PublicTaskResult() {
   const [unlocked, setUnlocked] = useState(false)
   const [copied, setCopied] = useState(false)
 
+  // ---- load task on mount -------------------------------------------------
+
   useEffect(() => {
     if (!id) return
 
@@ -253,6 +253,15 @@ export function PublicTaskResult() {
     return () => { cancelled = true }
   }, [id])
 
+  // ---- redeem callback (called by RedeemPanel on API success) ------------
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function handleRedeemSuccess(apiData: any) {
+    const v = apiToView(apiData)
+    setView(v)
+    setUnlocked(v.unlocked)
+  }
+
   // ---- loading state ------------------------------------------------------
 
   if (loading) {
@@ -304,7 +313,6 @@ export function PublicTaskResult() {
     budget: '预算',
   }
 
-  // Determine visible sections
   const allFullSections = view.fullSections
   const lockedSections = allFullSections
     ? allFullSections.filter((s) => !FREE_SECTION_IDS.has(s.id))
@@ -325,7 +333,6 @@ export function PublicTaskResult() {
 
   return (
     <div className="mx-auto max-w-5xl px-6">
-      {/* Back link */}
       <Link
         href="/new"
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
@@ -334,7 +341,6 @@ export function PublicTaskResult() {
         返回
       </Link>
 
-      {/* Title row */}
       <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
@@ -365,7 +371,6 @@ export function PublicTaskResult() {
         )}
       </div>
 
-      {/* Meta cards */}
       <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {metaItems.map((m) => (
           <div key={m.label} className="rounded-xl border border-border bg-card p-4">
@@ -378,16 +383,12 @@ export function PublicTaskResult() {
         ))}
       </div>
 
-      {/* Sections */}
       <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_320px]">
-        {/* Main column */}
         <div className="space-y-4">
-          {/* Free preview sections */}
           {view.previewSections.map((section) => (
             <SectionCard key={section.id} section={section} unlocked />
           ))}
 
-          {/* Locked sections — real data or placeholders */}
           {lockedSections.map((section) => (
             <SectionCard
               key={section.id}
@@ -396,7 +397,6 @@ export function PublicTaskResult() {
             />
           ))}
 
-          {/* Unlocked badge */}
           {unlocked && (
             <div className="rounded-2xl border border-primary/30 bg-accent p-5">
               <div className="flex items-center gap-3">
@@ -416,11 +416,11 @@ export function PublicTaskResult() {
           )}
         </div>
 
-        {/* Sidebar */}
         <aside className="lg:sticky lg:top-24 lg:h-fit">
           <RedeemPanel
+            taskId={id || ''}
             unlocked={unlocked}
-            onUnlock={() => setUnlocked(true)}
+            onUnlock={handleRedeemSuccess}
             lockedDescriptions={LOCKED_SECTION_DESCRIPTIONS}
           />
         </aside>
@@ -430,7 +430,7 @@ export function PublicTaskResult() {
 }
 
 // ---------------------------------------------------------------------------
-// Section card (unchanged from previous version)
+// Section card
 // ---------------------------------------------------------------------------
 
 function SectionCard({
@@ -440,13 +440,14 @@ function SectionCard({
   section: ResultSection
   unlocked: boolean
 }) {
-  const isLocked = section.locked !== true || unlocked
+  // isAccessible = content should be shown (not blurred / not overlaid)
+  const isAccessible = section.locked !== true || unlocked
 
   return (
     <div
       className={cn(
         'relative overflow-hidden rounded-2xl border bg-card',
-        !isLocked ? 'border-dashed border-border' : 'border-border',
+        !isAccessible ? 'border-dashed border-border' : 'border-border',
       )}
     >
       <div className="border-b border-border px-6 py-4">
@@ -474,9 +475,9 @@ function SectionCard({
         <ul
           className={cn(
             'space-y-2.5 transition',
-            !isLocked && 'pointer-events-none select-none blur-sm',
+            !isAccessible && 'pointer-events-none select-none blur-sm',
           )}
-          aria-hidden={!isLocked}
+          aria-hidden={!isAccessible}
         >
           {section.items.map((item, i) => (
             <li key={i} className="flex gap-2.5 text-sm text-foreground">
@@ -486,7 +487,7 @@ function SectionCard({
           ))}
         </ul>
 
-        {!isLocked && (
+        {!isAccessible && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-card/40">
             <div className="flex size-9 items-center justify-center rounded-full border border-border bg-card text-muted-foreground shadow-sm">
               <Lock className="size-4" />
@@ -500,35 +501,58 @@ function SectionCard({
 }
 
 // ---------------------------------------------------------------------------
-// Redeem panel (client-side mock — wired to real API in Step 5.10)
+// Redeem panel (wired to real API)
 // ---------------------------------------------------------------------------
 
 function RedeemPanel({
+  taskId,
   unlocked,
   onUnlock,
   lockedDescriptions,
 }: {
+  taskId: string
   unlocked: boolean
-  onUnlock: () => void
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  onUnlock: (data: any) => void
   lockedDescriptions: string[]
 }) {
   const [code, setCode] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [checking, setChecking] = useState(false)
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!code.trim()) return
     setChecking(true)
     setError(null)
-    setTimeout(() => {
-      if (VALID_CODES.includes(code.trim().toUpperCase())) {
-        onUnlock()
-      } else {
+
+    try {
+      const res = await fetch(`/api/tasks/${taskId}/redeem`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: code.trim() }),
+      })
+
+      if (res.status === 200) {
+        const data = await res.json()
+        onUnlock(data) // API response is the source of truth
+      } else if (res.status === 404) {
         setError('兑换码无效，请检查后重试。')
+        setChecking(false)
+      } else if (res.status === 409) {
+        setError('该兑换码已被使用。')
+        setChecking(false)
+      } else {
+        const data = await res.json().catch(() => ({} as Record<string, unknown>))
+        setError(
+          (data.message as string) || (data.error as string) || '解锁失败，请稍后重试',
+        )
+        setChecking(false)
       }
+    } catch {
+      setError('网络错误，请检查连接后重试。')
       setChecking(false)
-    }, 700)
+    }
   }
 
   if (unlocked) {
@@ -604,9 +628,6 @@ function RedeemPanel({
         <a href="#" className="font-medium text-primary hover:underline">
           了解升级方案
         </a>
-      </p>
-      <p className="mt-2 text-center text-[11px] text-muted-foreground/70">
-        演示码：<span className="font-mono">EVENTPILOT</span>
       </p>
     </div>
   )
