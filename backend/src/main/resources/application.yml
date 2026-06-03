@@ -19,6 +19,9 @@ spring:
           time_zone: UTC
 
 eventpilot:
+  auth:
+    jwt-secret: ${JWT_SECRET:dev-only-change-me-eventpilot-jwt-secret}
+    jwt-expiration-seconds: ${JWT_EXPIRATION_SECONDS:86400}
   ai:
     api-key: ${AI_API_KEY:sk-99b7f8fcdb344d15b04f43e57dc89eb9}
     base-url: ${AI_BASE_URL:https://api.deepseek.com}
