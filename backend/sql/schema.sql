@@ -1,3 +1,12 @@
+CREATE TABLE IF NOT EXISTS users (
+  id bigserial PRIMARY KEY,
+  email text NOT NULL UNIQUE,
+  name text,
+  password_hash text NOT NULL,
+  created_at timestamptz NOT NULL,
+  updated_at timestamptz NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS tasks (
   id varchar(32) PRIMARY KEY,
   mode text NOT NULL CHECK (mode IN ('startup', 'review', 'handoff')),
@@ -29,3 +38,4 @@ CREATE TABLE IF NOT EXISTS redeem_codes (
 
 CREATE INDEX IF NOT EXISTS idx_redeem_codes_task_id ON redeem_codes(task_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
