@@ -1,0 +1,27 @@
+server:
+  port: ${PORT:8080}
+
+spring:
+  application:
+    name: eventpilot-backend
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/eventpilot}
+    username: ${SPRING_DATASOURCE_USERNAME:eventpilot}
+    password: ${SPRING_DATASOURCE_PASSWORD:eventpilot}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+        jdbc:
+          time_zone: UTC
+
+eventpilot:
+  ai:
+    api-key: ${AI_API_KEY:sk-99b7f8fcdb344d15b04f43e57dc89eb9}
+    base-url: ${AI_BASE_URL:https://api.deepseek.com}
+    model: ${AI_MODEL:deepseek-chat}
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://127.0.0.1:5173}
