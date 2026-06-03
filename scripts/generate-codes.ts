@@ -3,9 +3,9 @@
 // EventPilot v0.1 — Redeem code generator
 //
 // Usage:
-//   pnpm generate-codes                    # generate 10 codes
-//   pnpm generate-codes --count 20         # generate 20 codes
-//   pnpm generate-codes --count 100 --output codes.txt  # write to file
+//   pnpm generate-sqlite-codes                    # generate 10 codes
+//   pnpm generate-sqlite-codes --count 20         # generate 20 codes
+//   pnpm generate-sqlite-codes --count 100 --output codes.txt  # write to file
 //
 // Code format: EP-XXXX-XXXX
 // Character set excludes ambiguous chars: 0, O, 1, I, L
