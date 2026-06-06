@@ -56,7 +56,7 @@ Authorization: Bearer <token>
 Authorization: Bearer eyJhbGciOiJIUzI1NiJ9...
 ```
 
-目前只有 `GET /api/auth/me` 需要登录。`/api/tasks/**` 任务接口暂时不强制登录，继续允许匿名访问。
+目前 `GET /api/auth/me` 和 `POST /api/tasks` 需要登录。`GET /api/tasks/{id}` 查询任务和 `POST /api/tasks/{id}/redeem` 兑换码解锁暂时保持匿名访问。
 
 ## 通用错误格式
 
@@ -213,7 +213,7 @@ const message = error.response?.data?.message || error.response?.data?.error || 
 | 注册 | POST | `/api/auth/register` | 否 |
 | 登录 | POST | `/api/auth/login` | 否 |
 | 获取当前用户 | GET | `/api/auth/me` | 是 |
-| 创建任务 | POST | `/api/tasks` | 否 |
+| 创建任务 | POST | `/api/tasks` | 是 |
 | 查询任务 | GET | `/api/tasks/{id}` | 否 |
 | 兑换码解锁任务 | POST | `/api/tasks/{id}/redeem` | 否 |
 
@@ -326,7 +326,7 @@ Accept: application/json
 
 前端调用注意事项：
 
-- 注册成功后直接保存 `token`，即可视为登录成功。
+- 后端会在注册成功后返回 `token`；前端可以按产品流程选择直接保存为已登录，或跳转登录页让用户重新登录。
 - 不要在前端保存明文密码。
 - 如果 `409 user_exists`，前端可以提示用户改为登录。
 
@@ -354,7 +354,7 @@ const response = await api.post("/api/auth/register", {
   name: "User",
 })
 
-localStorage.setItem("eventpilot_token", response.data.token)
+// 当前前端注册成功后跳转登录页；如产品改为注册即登录，也可以保存 response.data.token。
 ```
 
 ## 登录
@@ -516,7 +516,7 @@ Accept: application/json
 
 - Header 必须是 `Authorization: Bearer <token>`。
 - 如果返回 `401`，前端应清理本地 token 并引导用户重新登录。
-- 只有这个接口当前强制要求登录。
+- `GET /api/auth/me` 和 `POST /api/tasks` 当前强制要求登录。
 
 curl 示例：
 
@@ -557,7 +557,7 @@ api.interceptors.request.use((config) => {
 | --- | --- |
 | 请求方法 | `POST` |
 | URL | `/api/tasks` |
-| 是否需要登录 | 否 |
+| 是否需要登录 | 是 |
 | 成功状态码 | `202 Accepted` |
 
 请求 Header：
@@ -565,6 +565,7 @@ api.interceptors.request.use((config) => {
 ```http
 Content-Type: application/json
 Accept: application/json
+Authorization: Bearer <token>
 ```
 
 请求 Body：
@@ -658,6 +659,24 @@ Accept: application/json
 }
 ```
 
+`401 Unauthorized`，未携带 token：
+
+```json
+{
+  "error": "unauthorized",
+  "message": "请先登录"
+}
+```
+
+`401 Unauthorized`，token 无效或过期：
+
+```json
+{
+  "error": "invalid_token",
+  "message": "登录状态已失效，请重新登录"
+}
+```
+
 `500 Internal Server Error`：
 
 ```json
@@ -668,7 +687,8 @@ Accept: application/json
 
 前端调用注意事项：
 
-- 不需要登录，也不需要 `Authorization` Header。
+- 创建任务需要登录，必须携带 `Authorization: Bearer <token>`。
+- 如果返回 `401`，前端应清理本地 token 并引导用户登录。
 - 创建成功后保存 `id`，跳转结果页或开始轮询。
 - `status` 初始一定是 `generating`。
 
@@ -677,6 +697,7 @@ curl 示例：
 ```bash
 curl -X POST http://localhost:8080/api/tasks \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -d '{
     "mode": "startup",
     "activityName": "春季团建",
@@ -1060,7 +1081,7 @@ const unlockedTask = response.data
 
 1. 用户提交邮箱、密码和可选昵称。
 2. 调用 `POST /api/auth/register`。
-3. 注册成功后读取 `response.data.token`，保存到 `localStorage` 或应用状态。
+3. 注册成功后按产品流程处理：可以读取 `response.data.token` 直接登录，也可以跳转登录页让用户重新登录。
 4. 如果注册返回 `409 user_exists`，提示用户改为登录。
 5. 用户登录时调用 `POST /api/auth/login`。
 6. 登录成功后同样保存 `response.data.token`。
@@ -1069,10 +1090,11 @@ const unlockedTask = response.data
 ### 创建任务流程
 
 1. 用户填写活动信息。
-2. 调用 `POST /api/tasks`。
-3. 后端返回 `202` 和 `{ id, status: "generating" }`。
-4. 前端保存任务 `id`。
-5. 跳转到任务结果页，例如 `/tasks/{id}` 或当前前端约定的结果页。
+2. 确认本地已有有效 JWT；未登录时先跳转登录页。
+3. 调用 `POST /api/tasks`，并携带 `Authorization: Bearer <token>`。
+4. 后端返回 `202` 和 `{ id, status: "generating" }`。
+5. 前端保存任务 `id`。
+6. 跳转到任务结果页，例如 `/tasks/{id}` 或当前前端约定的结果页。
 
 ### 轮询任务结果流程
 
@@ -1162,7 +1184,6 @@ export async function register(payload: {
   name?: string
 }) {
   const response = await api.post("/api/auth/register", payload)
-  localStorage.setItem("eventpilot_token", response.data.token)
   return response.data
 }
 
@@ -1185,6 +1206,7 @@ export async function getCurrentUser() {
 - [ ] 注册成功后从 `response.data.token` 保存 JWT。
 - [ ] 登录成功后从 `response.data.token` 保存 JWT。
 - [ ] 请求 `/api/auth/me` 时携带 `Authorization: Bearer <token>`。
+- [ ] 创建任务 `POST /api/tasks` 时携带 `Authorization: Bearer <token>`。
 - [ ] `Bearer` 和 token 中间有一个空格。
 - [ ] 收到 `401 unauthorized` 或 `401 invalid_token` 时清理本地 token，并引导重新登录。
 - [ ] 创建任务接口按 `202 Accepted` 处理。
@@ -1194,4 +1216,4 @@ export async function getCurrentUser() {
 - [ ] 未解锁时不要展示或依赖 `fullOutput`，因为后端会返回 `null`。
 - [ ] 兑换码解锁成功后，用返回的完整任务响应更新页面状态。
 - [ ] 错误提示兼容 `{ "error": "xxx" }` 和 `{ "error": "xxx", "message": "xxx" }` 两种格式。
-- [ ] 不要给 `/api/tasks/**` 强行加登录前置逻辑，当前后端允许匿名访问。
+- [ ] 保持 `GET /api/tasks/{id}` 和 `POST /api/tasks/{id}/redeem` 匿名访问，除非后续产品需求明确要求收紧。
