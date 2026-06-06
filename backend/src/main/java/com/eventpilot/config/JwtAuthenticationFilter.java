@@ -70,7 +70,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
       HttpServletRequest request,
       HttpServletResponse response,
       FilterChain filterChain) throws IOException, ServletException {
-    if (!isAuthMe(request)) {
+    if (!requiresValidToken(request)) {
       filterChain.doFilter(request, response);
       return;
     }
@@ -83,8 +83,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         new ErrorResponse("invalid_token", "登录状态已失效，请重新登录"));
   }
 
-  private boolean isAuthMe(HttpServletRequest request) {
-    return "GET".equalsIgnoreCase(request.getMethod())
-        && "/api/auth/me".equals(request.getRequestURI());
+  private boolean requiresValidToken(HttpServletRequest request) {
+    String method = request.getMethod();
+    String path = request.getRequestURI();
+    return ("GET".equalsIgnoreCase(method) && "/api/auth/me".equals(path))
+        || ("POST".equalsIgnoreCase(method) && "/api/tasks".equals(path));
   }
 }
