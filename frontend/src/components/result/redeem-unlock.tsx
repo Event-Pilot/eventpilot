@@ -5,6 +5,7 @@ import { Lock, Check, KeyRound, AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { uiCopy } from '@/content/ui-copy'
 
 // Demo redeem codes — replace with server-side validation in production.
 const VALID_CODES = ['EVENTPILOT', 'PILOT2026', 'UNLOCK']
@@ -29,7 +30,7 @@ export function RedeemUnlock({
       if (VALID_CODES.includes(code.trim().toUpperCase())) {
         onUnlock()
       } else {
-        setError('That code isn’t valid. Check it and try again.')
+        setError(uiCopy.result.redeem.invalidCode)
       }
       setChecking(false)
     }, 700)
@@ -43,9 +44,11 @@ export function RedeemUnlock({
             <Check className="size-4" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-accent-foreground">Full output unlocked</p>
+            <p className="text-sm font-semibold text-accent-foreground">
+              {uiCopy.result.redeem.unlockedTitle}
+            </p>
             <p className="text-xs text-muted-foreground">
-              Every section is now available to view, edit, and export.
+              {uiCopy.result.redeem.unlockedDescription}
             </p>
           </div>
         </div>
@@ -60,9 +63,11 @@ export function RedeemUnlock({
           <Lock className="size-4" />
         </div>
         <div>
-          <p className="text-sm font-semibold text-foreground">Unlock the full pack</p>
+          <p className="text-sm font-semibold text-foreground">
+            {uiCopy.result.redeem.lockedTitle}
+          </p>
           <p className="text-xs text-muted-foreground">
-            Budget, roles, run sheet, and checklist are locked.
+            {uiCopy.result.redeem.lockedDescription}
           </p>
         </div>
       </div>
@@ -70,7 +75,7 @@ export function RedeemUnlock({
       <form onSubmit={handleSubmit} className="mt-4 space-y-3">
         <div className="space-y-1.5">
           <Label htmlFor="redeem-code" className="text-xs">
-            Redeem code
+            {uiCopy.result.redeem.codeLabel}
           </Label>
           <div className="relative">
             <KeyRound className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -81,7 +86,7 @@ export function RedeemUnlock({
                 setCode(e.target.value)
                 setError(null)
               }}
-              placeholder="Enter your code"
+              placeholder={uiCopy.result.redeem.codePlaceholder}
               className="pl-9 font-mono uppercase tracking-wider"
               aria-invalid={!!error}
               aria-describedby={error ? 'redeem-error' : undefined}
@@ -95,18 +100,19 @@ export function RedeemUnlock({
           )}
         </div>
         <Button type="submit" className="w-full" disabled={checking || !code.trim()}>
-          {checking ? 'Checking…' : 'Unlock full output'}
+          {checking ? uiCopy.result.redeem.checking : uiCopy.result.redeem.submit}
         </Button>
       </form>
 
       <p className="mt-3 text-center text-xs text-muted-foreground">
-        No code?{' '}
+        {uiCopy.result.redeem.noCode}{' '}
         <a href="#" className="font-medium text-primary hover:underline">
-          Upgrade your plan
+          {uiCopy.result.redeem.upgrade}
         </a>
       </p>
       <p className="mt-2 text-center text-[11px] text-muted-foreground/70">
-        Try <span className="font-mono">EVENTPILOT</span> for the demo
+        {uiCopy.result.redeem.demoCodePrefix}{' '}
+        <span className="font-mono">EVENTPILOT</span>
       </p>
     </div>
   )
