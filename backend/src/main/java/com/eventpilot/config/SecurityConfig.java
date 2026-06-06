@@ -34,8 +34,10 @@ public class SecurityConfig {
         .authorizeHttpRequests(auth -> auth
             .requestMatchers(HttpMethod.OPTIONS, "/api/**").permitAll()
             .requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/login").permitAll()
-            .requestMatchers("/api/tasks/**").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/auth/me").authenticated()
+            .requestMatchers(HttpMethod.GET, "/api/tasks/**").permitAll()
+            .requestMatchers(HttpMethod.POST, "/api/tasks/*/redeem").permitAll()
+            .requestMatchers(HttpMethod.POST, "/api/tasks").authenticated()
             .anyRequest().permitAll())
         .exceptionHandling(exception -> exception.authenticationEntryPoint(
             (request, response, authException) -> writeUnauthorized(response, objectMapper)))
