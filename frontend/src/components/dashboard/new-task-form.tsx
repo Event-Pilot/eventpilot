@@ -16,28 +16,15 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Spinner } from '@/components/ui/spinner'
+import { uiCopy } from '@/content/ui-copy'
 import { cn } from '@/lib/utils'
 
-const taskTypes = [
-  {
-    value: 'pack',
-    label: 'Planning pack',
-    desc: 'Timeline, budget, roles & checklist',
-    icon: FileStack,
-  },
-  {
-    value: 'review',
-    label: 'Document review',
-    desc: 'Flag gaps, risks & policy issues',
-    icon: ShieldCheck,
-  },
-  {
-    value: 'handoff',
-    label: 'Handoff doc',
-    desc: 'Clean summary to share or pass on',
-    icon: Send,
-  },
-]
+const taskTypeIcons = [FileStack, ShieldCheck, Send]
+
+const taskTypes = uiCopy.dashboard.newTaskForm.taskTypes.map((taskType, index) => ({
+  ...taskType,
+  icon: taskTypeIcons[index],
+}))
 
 export function NewTaskForm() {
   const router = useRouter()
@@ -59,19 +46,23 @@ export function NewTaskForm() {
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
       >
         <ArrowLeft className="size-4" />
-        Back to dashboard
+        {uiCopy.dashboard.newTaskForm.backToDashboard}
       </Link>
 
       <div className="mt-4">
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">New task</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+          {uiCopy.dashboard.newTaskForm.title}
+        </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Describe your event and EventPilot will generate a draft you can refine.
+          {uiCopy.dashboard.newTaskForm.description}
         </p>
       </div>
 
       <form onSubmit={handleSubmit} className="mt-8 space-y-8">
         <fieldset className="space-y-3">
-          <legend className="text-sm font-medium text-foreground">What do you need?</legend>
+          <legend className="text-sm font-medium text-foreground">
+            {uiCopy.dashboard.newTaskForm.modeLegend}
+          </legend>
           <div className="grid gap-3 sm:grid-cols-3">
             {taskTypes.map((t) => {
               const active = taskType === t.value
@@ -106,68 +97,87 @@ export function NewTaskForm() {
 
         <div className="space-y-5 rounded-2xl border border-border bg-card p-6">
           <div className="space-y-2">
-            <Label htmlFor="title">Event name</Label>
-            <Input id="title" name="title" placeholder="e.g. Spring Formal 2026" required />
+            <Label htmlFor="title">{uiCopy.dashboard.newTaskForm.eventNameLabel}</Label>
+            <Input
+              id="title"
+              name="title"
+              placeholder={uiCopy.dashboard.newTaskForm.eventNamePlaceholder}
+              required
+            />
           </div>
 
           <div className="grid gap-5 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="event-type">Event type</Label>
+              <Label htmlFor="event-type">{uiCopy.dashboard.newTaskForm.eventTypeLabel}</Label>
               <Select defaultValue="social">
                 <SelectTrigger id="event-type">
-                  <SelectValue placeholder="Select type" />
+                  <SelectValue placeholder={uiCopy.dashboard.newTaskForm.eventTypePlaceholder} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="social">Social / mixer</SelectItem>
-                  <SelectItem value="fundraiser">Fundraiser</SelectItem>
-                  <SelectItem value="conference">Conference</SelectItem>
-                  <SelectItem value="workshop">Workshop</SelectItem>
-                  <SelectItem value="meeting">Meeting</SelectItem>
+                  <SelectItem value="social">
+                    {uiCopy.dashboard.newTaskForm.eventTypeOptions.social}
+                  </SelectItem>
+                  <SelectItem value="fundraiser">
+                    {uiCopy.dashboard.newTaskForm.eventTypeOptions.fundraiser}
+                  </SelectItem>
+                  <SelectItem value="conference">
+                    {uiCopy.dashboard.newTaskForm.eventTypeOptions.conference}
+                  </SelectItem>
+                  <SelectItem value="workshop">
+                    {uiCopy.dashboard.newTaskForm.eventTypeOptions.workshop}
+                  </SelectItem>
+                  <SelectItem value="meeting">
+                    {uiCopy.dashboard.newTaskForm.eventTypeOptions.meeting}
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="date">Target date</Label>
+              <Label htmlFor="date">{uiCopy.dashboard.newTaskForm.targetDateLabel}</Label>
               <Input id="date" name="date" type="date" required />
             </div>
           </div>
 
           <div className="grid gap-5 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="attendees">Expected attendees</Label>
+              <Label htmlFor="attendees">{uiCopy.dashboard.newTaskForm.attendeesLabel}</Label>
               <Input id="attendees" name="attendees" type="number" placeholder="180" min={1} />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="budget">Budget (optional)</Label>
-              <Input id="budget" name="budget" placeholder="$6,500" />
+              <Label htmlFor="budget">{uiCopy.dashboard.newTaskForm.budgetLabel}</Label>
+              <Input
+                id="budget"
+                name="budget"
+                placeholder={uiCopy.dashboard.newTaskForm.budgetPlaceholder}
+              />
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="goals">Goals &amp; notes</Label>
+            <Label htmlFor="goals">{uiCopy.dashboard.newTaskForm.goalsLabel}</Label>
             <Textarea
               id="goals"
               name="goals"
               rows={4}
-              placeholder="Tell EventPilot what success looks like, any constraints, themes, or requirements..."
+              placeholder={uiCopy.dashboard.newTaskForm.goalsPlaceholder}
             />
           </div>
         </div>
 
         <div className="flex flex-col-reverse items-center gap-3 sm:flex-row sm:justify-end">
           <Button asChild type="button" variant="ghost">
-            <Link href="/dashboard">Cancel</Link>
+            <Link href="/dashboard">{uiCopy.dashboard.newTaskForm.cancel}</Link>
           </Button>
           <Button type="submit" disabled={submitting} className="w-full sm:w-auto">
             {submitting ? (
               <>
                 <Spinner className="size-4" />
-                Generating…
+                {uiCopy.dashboard.newTaskForm.generating}
               </>
             ) : (
               <>
                 <Sparkles className="size-4" />
-                Generate
+                {uiCopy.dashboard.newTaskForm.generate}
               </>
             )}
           </Button>
