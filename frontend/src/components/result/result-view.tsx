@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { RedeemUnlock } from '@/components/result/redeem-unlock'
+import { uiCopy } from '@/content/ui-copy'
 import { sampleResult, type ResultSection } from '@/lib/tasks'
 import { cn } from '@/lib/utils'
 
@@ -24,10 +25,10 @@ export function ResultView() {
   const { title, type, meta, sections } = sampleResult
 
   const metaItems = [
-    { icon: Users, label: 'Audience', value: meta.audience },
-    { icon: CalendarDays, label: 'Date', value: meta.date },
-    { icon: MapPin, label: 'Venue', value: meta.venue },
-    { icon: Wallet, label: 'Budget', value: meta.budget },
+    { icon: Users, label: uiCopy.result.metaLabels.audience, value: meta.audience },
+    { icon: CalendarDays, label: uiCopy.result.metaLabels.date, value: meta.date },
+    { icon: MapPin, label: uiCopy.result.metaLabels.venue, value: meta.venue },
+    { icon: Wallet, label: uiCopy.result.metaLabels.budget, value: meta.budget },
   ]
 
   return (
@@ -37,7 +38,7 @@ export function ResultView() {
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
       >
         <ArrowLeft className="size-4" />
-        Back to dashboard
+        {uiCopy.result.backToDashboard}
       </Link>
 
       <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -47,18 +48,20 @@ export function ResultView() {
               <Sparkles className="size-3" />
               {type}
             </span>
-            <span className="text-xs text-muted-foreground">Generated just now</span>
+            <span className="text-xs text-muted-foreground">
+              {uiCopy.result.generatedJustNow}
+            </span>
           </div>
           <h1 className="mt-3 text-2xl font-semibold tracking-tight text-foreground">{title}</h1>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" disabled={!unlocked}>
             <Share2 className="size-4" />
-            Share
+            {uiCopy.result.share}
           </Button>
           <Button size="sm" disabled={!unlocked}>
             <Download className="size-4" />
-            Export
+            {uiCopy.result.export}
           </Button>
         </div>
       </div>
@@ -85,16 +88,14 @@ export function ResultView() {
         <aside className="lg:sticky lg:top-24 lg:h-fit">
           <RedeemUnlock unlocked={unlocked} onUnlock={() => setUnlocked(true)} />
           <div className="mt-4 rounded-2xl border border-border bg-card p-5">
-            <p className="text-sm font-medium text-foreground">What you get</p>
+            <p className="text-sm font-medium text-foreground">{uiCopy.result.whatYouGet}</p>
             <ul className="mt-3 space-y-2">
-              {['Full budget breakdown', 'Roles & responsibilities', 'Day-of run sheet', 'Pre-event checklist', 'Editable export (PDF & Docs)'].map(
-                (item) => (
-                  <li key={item} className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Check className="size-4 text-primary" />
-                    {item}
-                  </li>
-                ),
-              )}
+              {uiCopy.result.benefits.map((item) => (
+                <li key={item} className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Check className="size-4 text-primary" />
+                  {item}
+                </li>
+              ))}
             </ul>
           </div>
         </aside>
@@ -120,12 +121,12 @@ function SectionCard({ section, unlocked }: { section: ResultSection; unlocked: 
             (unlocked ? (
               <span className="inline-flex items-center gap-1 text-xs text-primary">
                 <Check className="size-3.5" />
-                Unlocked
+                {uiCopy.result.unlocked}
               </span>
             ) : (
               <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
                 <Lock className="size-3" />
-                Locked
+                {uiCopy.result.locked}
               </span>
             ))}
         </div>
@@ -153,7 +154,7 @@ function SectionCard({ section, unlocked }: { section: ResultSection; unlocked: 
             <div className="flex size-9 items-center justify-center rounded-full border border-border bg-card text-muted-foreground shadow-sm">
               <Lock className="size-4" />
             </div>
-            <p className="text-xs font-medium text-foreground">Enter a code to unlock</p>
+            <p className="text-xs font-medium text-foreground">{uiCopy.result.unlockHint}</p>
           </div>
         )}
       </div>
