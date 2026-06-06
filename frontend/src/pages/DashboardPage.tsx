@@ -3,13 +3,14 @@ import { ArrowUpRight, FileStack, Clock, CheckCircle2, Plus } from 'lucide-react
 import { DashboardShell } from '@/components/dashboard/dashboard-shell'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
+import { uiCopy } from '@/content/ui-copy'
 import { tasks, statusLabels, statusStyles } from '@/lib/tasks'
 import { cn } from '@/lib/utils'
 
 const stats = [
-  { label: 'Active tasks', value: '4', icon: FileStack },
-  { label: 'In review', value: '1', icon: Clock },
-  { label: 'Completed this term', value: '12', icon: CheckCircle2 },
+  { label: uiCopy.dashboard.stats.activeTasks, value: '4', icon: FileStack },
+  { label: uiCopy.dashboard.stats.inReview, value: '1', icon: Clock },
+  { label: uiCopy.dashboard.stats.completedThisTerm, value: '12', icon: CheckCircle2 },
 ]
 
 export function DashboardPage() {
@@ -18,15 +19,17 @@ export function DashboardPage() {
       <div className="mx-auto max-w-5xl">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-foreground">Dashboard</h1>
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+              {uiCopy.dashboard.title}
+            </h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Your event tasks, generations, and handoffs in one place.
+              {uiCopy.dashboard.description}
             </p>
           </div>
           <Button asChild>
             <Link href="/dashboard/new">
               <Plus className="size-4" />
-              New task
+              {uiCopy.dashboard.newTask}
             </Link>
           </Button>
         </div>
@@ -46,7 +49,9 @@ export function DashboardPage() {
         </div>
 
         <div className="mt-8" id="library">
-          <h2 className="text-sm font-medium text-foreground">Recent tasks</h2>
+          <h2 className="text-sm font-medium text-foreground">
+            {uiCopy.dashboard.recentTasks}
+          </h2>
           <div className="mt-3 overflow-hidden rounded-2xl border border-border bg-card">
             {tasks.map((task, i) => (
               <Link
