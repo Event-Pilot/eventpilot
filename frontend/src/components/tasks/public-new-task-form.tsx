@@ -2,6 +2,7 @@
 
 import { useState, useRef } from 'react'
 import Link from 'next/link'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { AlertCircle } from 'lucide-react'
 import {
   FileStack,
@@ -23,6 +24,8 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Spinner } from '@/components/ui/spinner'
+import { LOGIN_REQUIRED_MESSAGE } from '@/components/auth/route-guard'
+import { useAuth } from '@/context/auth-context'
 import { cn } from '@/lib/utils'
 import { createTask } from '@/services/tasks'
 
@@ -76,6 +79,9 @@ const activityTypes = [
 
 export function PublicNewTaskForm() {
   const containerRef = useRef<HTMLDivElement>(null)
+  const location = useLocation()
+  const navigate = useNavigate()
+  const { isAuthenticated, logout } = useAuth()
   const [mode, setMode] = useState<TaskMode>('startup')
   const [activityType, setActivityType] = useState('社团活动')
   const [submitting, setSubmitting] = useState(false)
@@ -96,6 +102,17 @@ export function PublicNewTaskForm() {
     console.info('[EventPilot] generate button clicked')
 
     if (submitting) return
+
+    if (!isAuthenticated) {
+      navigate('/login', {
+        replace: true,
+        state: {
+          from: location,
+          message: LOGIN_REQUIRED_MESSAGE,
+        },
+      })
+      return
+    }
 
     setError(null)
     setSubmitting(true)
@@ -145,13 +162,26 @@ export function PublicNewTaskForm() {
       setNavigating(true)
       // Brief delay so user sees "任务已创建" before navigation.
       setTimeout(() => {
-        window.location.assign(`/tasks/${data.id}`)
+        navigate(`/tasks/${data.id}`)
       }, 800)
     } catch (err) {
       console.error('[EventPilot] task creation failed', err)
       const maybeResponse = err as {
-        response?: { data?: { message?: string; error?: string } }
+        response?: { status?: number; data?: { message?: string; error?: string } }
       }
+
+      if (maybeResponse.response?.status === 401) {
+        logout()
+        navigate('/login', {
+          replace: true,
+          state: {
+            from: location,
+            message: LOGIN_REQUIRED_MESSAGE,
+          },
+        })
+        return
+      }
+
       setError(
         maybeResponse.response?.data?.message ||
           maybeResponse.response?.data?.error ||
