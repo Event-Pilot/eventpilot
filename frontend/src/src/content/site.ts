@@ -45,7 +45,7 @@ export const siteConfig = {
   metadata: {
     title: 'EventPilot — AI 活动流程助手',
     description:
-      'EventPilot 帮助学生组织、社团和小型团队生成活动启动包、复盘报告和换届交接文档，几分钟内完成从想法到可执行方案的整理。',
+      'EventPilot 帮助学生组织、社团和活动团队生成活动启动包、复盘报告和交接文档，把零散信息整理成可执行方案。',
   },
 
   // ---- site header -------------------------------------------------------
@@ -66,10 +66,10 @@ export const siteConfig = {
   hero: {
     badge: {
       icon: 'Sparkles' as IconName,
-      text: 'AI 活动流程助手',
+      text: 'EventPilot 活动飞行控制台',
     },
-    heading: '把你的活动想法，变成可执行的流程文档',
-    body: 'EventPilot 根据你提供的信息，自动整理时间线、预算、分工和清单。你专注活动本身，文档的事交给我们。',
+    heading: '从活动信息，到完整执行方案',
+    body: '输入活动背景、规模、预算和限制条件，EventPilot 会把它们编排成时间线、预算、分工、当天流程和检查清单。',
     primaryCta: {
       label: '开始生成',
       href: '/new',
@@ -79,22 +79,57 @@ export const siteConfig = {
       label: '查看示例',
       href: '/tasks/demo',
     },
-    footnote: '免费使用 · 无需注册 · 为学生组织和轻量团队设计',
+    footnote: '一条清晰航线：输入信息 → AI 编排 → 执行方案',
+    mock: {
+      windowLabel: 'EventPilot 活动飞行台',
+      previewBadge: '活动执行方案生成中',
+      title: '2026 春季社团文化节',
+      meta: '计算机协会 · 180 人 · 多功能厅 · 3000-5000 元',
+      status: 'AI 编排中',
+      routeLabel: '生成航线',
+      route: ['输入活动信息', 'AI 整理逻辑', '生成执行方案'],
+      inputTitle: '活动信息输入',
+      inputRows: [
+        { label: '活动目标', value: '展示社团成果，吸引新成员' },
+        { label: '时间地点', value: '4 月中旬 · 多功能厅' },
+        { label: '资源限制', value: '预算 3000-5000 元，志愿者 18 人' },
+      ],
+      materialTitle: '已读取材料',
+      materials: ['会议记录', '往届策划案', '场地规则'],
+      aiTitle: 'AI 编排引擎',
+      aiSubtitle: '正在把零散信息转换为可执行结构',
+      aiSignals: ['目标', '时间', '预算', '人员', '风险'],
+      outputTitle: '完整执行方案',
+      readyLabel: '已生成',
+      outputs: [
+        { title: '筹备时间线', detail: '8 周倒排 · 关键节点 · 负责人' },
+        { title: '预算与物资', detail: '支出拆解 · 缓冲金 · 采购清单' },
+        { title: '人员分工', detail: '岗位职责 · 备选联系人 · 到岗时间' },
+        { title: '当天流程', detail: '分钟级流程 · 签到 · 撤场' },
+      ],
+      deckTitle: '执行包已生成',
+      deckItems: ['活动概览', '检查清单', '风险提醒'],
+      summary: [
+        { value: '6', label: '核心章节' },
+        { value: '48h', label: '检查窗口' },
+        { value: '1', label: '可分享链接' },
+      ],
+    },
     previewSteps: [
       {
         icon: 'FileText' as IconName,
         label: '活动启动包',
-        desc: '时间线、预算、分工、清单',
+        desc: '时间线、预算、分工、物资清单',
       },
       {
         icon: 'CheckCircle2' as IconName,
         label: '活动复盘包',
-        desc: '数据整理、问题标记、改进建议',
+        desc: '数据整理、问题定位、改进建议',
       },
       {
         icon: 'Send' as IconName,
         label: '换届交接包',
-        desc: '流程文档、注意事项、一键移交',
+        desc: '流程沉淀、风险提醒、经验移交',
       },
     ],
   },
@@ -102,9 +137,20 @@ export const siteConfig = {
   // ---- features section --------------------------------------------------
 
   features: {
-    label: '覆盖活动全流程',
-    heading: '从想法到执行，再到交接，一步不漏',
-    body: 'EventPilot 把活动信息整理成结构化文档，减少重复劳动，降低团队沟通成本。',
+    label: '活动文档工作台',
+    heading: '把策划、执行、复盘放进同一套流程',
+    body: 'EventPilot 不替你做决定，而是把关键事项整理清楚，让团队更快对齐目标、分工和交付物。',
+    summary: [
+      { value: '6', label: '核心文档模块' },
+      { value: '20-60 秒', label: '生成预览初稿' },
+      { value: '1 个链接', label: '团队共享结果' },
+    ],
+    preview: {
+      title: '活动执行包结构',
+      subtitle: '从概览到检查清单，输出可以直接进入团队协作。',
+      tabs: ['启动包', '复盘包', '交接包'],
+      timeline: ['活动概览', '筹备时间线', '预算与物资', '人员分工', '当天流程', '检查清单'],
+    },
     items: [
       {
         icon: 'FileStack' as IconName,
@@ -143,7 +189,9 @@ export const siteConfig = {
 
   howItWorks: {
     label: '使用流程',
-    heading: '四步完成活动准备',
+    heading: '从输入信息到交付文档，流程保持清晰',
+    body: '让活动从想法、草案、执行到归档都有明确位置，减少反复沟通和遗漏。',
+    routeLabel: '推荐流程',
     steps: [
       {
         step: '01',
@@ -172,8 +220,10 @@ export const siteConfig = {
 
   useCases: {
     label: '适用场景',
-    heading: '一套工具，适配各种活动',
-    body: '不管是十几个人的社团活动，还是跨校联合项目，EventPilot 都能适配你的工作节奏。',
+    heading: '适合需要快速成稿的活动团队',
+    body: '不管是十几个人的社团活动，还是跨部门的企业活动，EventPilot 都能把工作拆成更清楚的文档。',
+    pipeline: ['策划', '执行', '归档'],
+    highlightFlow: ['活动输入', '结构化生成', '团队交接'],
     items: [
       {
         icon: 'GraduationCap' as IconName,
@@ -201,8 +251,9 @@ export const siteConfig = {
   // ---- CTA / pricing section ---------------------------------------------
 
   cta: {
-    heading: '下一个活动，从现在开始准备',
-    body: '免费生成你的第一份活动启动包。团队需要更多功能时再升级。',
+    heading: '下一场活动，从一份清楚的文档开始',
+    body: '登录后创建任务，先查看预览内容，再按需解锁完整活动包。',
+    highlights: ['登录后生成', '公开预览可分享', '完整文档可解锁'],
     primaryCta: {
       label: '开始生成',
       href: '/new',
@@ -221,19 +272,36 @@ export const siteConfig = {
     columns: [
       {
         title: '产品',
-        links: ['功能', '使用流程', '模板', '定价', '更新日志'],
+        links: [
+          { label: '功能', href: '/#features' },
+          { label: '使用流程', href: '/#how-it-works' },
+          { label: '查看示例', href: '/tasks/demo' },
+          { label: '定价', href: '/#pricing' },
+        ],
       },
       {
         title: '场景',
-        links: ['学生组织', '社团活动', '轻量团队', '活动策划'],
+        links: [
+          { label: '学生组织', href: '/#use-cases' },
+          { label: '社团活动', href: '/#use-cases' },
+          { label: '企业活动', href: '/#use-cases' },
+          { label: '活动策划', href: '/new' },
+        ],
       },
       {
         title: '关于',
-        links: ['关于我们', '博客', '加入我们', '联系我们'],
+        links: [
+          { label: '关于我们', href: '/#features' },
+          { label: '联系我们', href: '/#pricing' },
+        ],
       },
       {
         title: '资源',
-        links: ['文档', '帮助中心', '隐私政策', '服务条款'],
+        links: [
+          { label: '帮助中心', href: '/#how-it-works' },
+          { label: '隐私政策', href: '/#pricing' },
+          { label: '服务条款', href: '/#pricing' },
+        ],
       },
     ],
     copyright: `© ${new Date().getFullYear()} EventPilot`,
